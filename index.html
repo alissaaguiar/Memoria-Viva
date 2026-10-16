@@ -1,11 +1,344 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memória Viva</title>
+    <meta name="description" content="Memória Viva: sistema de gerenciamento de registros históricos.">
+    <title>Memória Viva - Registros Históricos</title>
 </head>
+
 <body>
+
+    <!-- ===================== IDENTIFICAÇÃO E NAVEGAÇÃO ===================== -->
+    <header>
+
+        <h1>Memória Viva</h1>
+        <p>Sistema de gerenciamento de registros históricos</p>
+
+        <nav aria-label="Navegação principal">
+            <ul>
+                <li><a href="#cadastro">Cadastrar registro</a></li>
+                <li><a href="#consulta">Consultar registros</a></li>
+                <li><a href="#detalhes">Detalhes do registro</a></li>
+                <li><a href="#linha-do-tempo">Linha do tempo</a></li>
+                <li><a href="#mapa">Mapa</a></li>
+                <li><a href="#forum">Fórum</a></li>
+                <li><a href="#sobre">Sobre</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+
+    <!-- ===================== CADASTRO ===================== -->
+        <section id="cadastro" aria-labelledby="titulo-cadastro">
+            <h2 id="titulo-cadastro">Cadastrar registro histórico</h2>
+
+            <form action="#" method="post">
+
+                <fieldset>
+                    <legend>Informações principais</legend>
+
+                    <p>
+                        <label for="titulo">Título *</label><br>
+                        <input type="text" id="titulo" name="titulo" maxlength="120" required
+                            placeholder="Ex.: Inauguração da estação ferroviária">
+                    </p>
+
+                    <p>
+                        <label for="descricao">Descrição *</label><br>
+                        <textarea id="descricao" name="descricao" rows="6" cols="60" required
+                                placeholder="Descreva o fato, o contexto e a sua importância histórica."></textarea>
+                    </p>
+
+                    <p>
+                        <label for="categoria">Categoria *</label><br>
+                        <select id="categoria" name="categoria" required>
+                            <option value="">Selecione...</option>
+                            <option value="politica">Política</option>
+                            <option value="cultura">Cultura</option>
+                            <option value="economia">Economia</option>
+                            <option value="sociedade">Sociedade</option>
+                            <option value="arquitetura">Arquitetura e patrimônio</option>
+                            <option value="ciencia">Ciência e tecnologia</option>
+                            <option value="outra">Outra</option>
+                        </select>
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Data ou período</legend>
+
+                    <p>
+                        <label for="tipo-data">Tipo de data</label><br>
+                        <select id="tipo-data" name="tipo-data">
+                            <option value="exata">Data exata</option>
+                            <option value="ano">Apenas o ano</option>
+                            <option value="periodo">Período (início e fim)</option>
+                            <option value="aproximada">Data aproximada</option>
+                        </select>
+                    </p>
+
+                    <p>
+                        <label for="data-inicio">Data de início</label><br>
+                        <input type="date" id="data-inicio" name="data-inicio">
+                    </p>
+
+                    <p>
+                        <label for="data-fim">Data de fim (se for um período)</label><br>
+                        <input type="date" id="data-fim" name="data-fim">
+                    </p>
+
+                    <p>
+                        <label for="ano">Ano (se não houver data completa)</label><br>
+                        <input type="number" id="ano" name="ano" min="1" max="2100" step="1" placeholder="Ex.: 1888">
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Local e pessoas relacionadas</legend>
+
+                    <p>
+                        <label for="local">Local</label><br>
+                        <input type="text" id="local" name="local" placeholder="Cidade, estado, país">
+                    </p>
+
+                    <p>
+                        <label for="latitude">Latitude (opcional)</label><br>
+                        <input type="number" id="latitude" name="latitude" step="any" min="-90" max="90">
+                    </p>
+
+                    <p>
+                        <label for="longitude">Longitude (opcional)</label><br>
+                        <input type="number" id="longitude" name="longitude" step="any" min="-180" max="180">
+                    </p>
+
+                    <p>
+                        <label for="pessoas">Pessoas relacionadas</label><br>
+                        <input type="text" id="pessoas" name="pessoas" placeholder="Separe os nomes por vírgula">
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Fonte e referências</legend>
+
+                    <p>
+                        <label for="fonte">Fonte das informações *</label><br>
+                        <input type="text" id="fonte" name="fonte" required
+                            placeholder="Ex.: Arquivo Público Mineiro, livro, jornal, entrevista">
+                    </p>
+
+                    <p>
+                        <label for="link-fonte">Link da fonte (se houver)</label><br>
+                        <input type="url" id="link-fonte" name="link-fonte" placeholder="https://...">
+                    </p>
+
+                    <p>
+                        <label for="referencias">Referências para documentos</label><br>
+                        <textarea id="referencias" name="referencias" rows="4" cols="60"
+                                placeholder="Um documento ou link por linha (atas, fotografias, jornais, certidões...)"></textarea>
+                    </p>
+
+                    <p>
+                        <button type="submit">Salvar registro</button>
+                        <button type="reset">Limpar formulário</button>
+                    </p>
+
+                    <p><small>* Campos obrigatórios</small></p>
+            </form>
+        </section>
+
+        <!-- ===================== CONSULTA ===================== -->
+
+        <section id="consulta" aria-labelledby="titulo-consulta">
+            <h2 id="titulo-consulta">Consultar registros</h2>
+
+            <!-- Pesquisa, filtro e ordenação -->
+            <form action="#" method="get" role="search" aria-label="Pesquisa, filtros e ordenação de registros">
+
+                <fieldset>
+                    <legend>Pesquisar</legend>
+                    <p>
+                        <label for="pesquisa">Buscar por palavra-chave</label><br>
+                        <input type="search" id="pesquisa" name="pesquisa" placeholder="Título, descrição, local...">
+                        <button type="button">Pesquisar</button>
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Filtrar</legend>
+
+                    <p>
+                        <label for="filtro-categoria">Categoria</label><br>
+                        <select id="filtro-categoria" name="filtro-categoria">
+                            <option value="">Todas</option>
+                            <option value="politica">Política</option>
+                            <option value="cultura">Cultura</option>
+                            <option value="economia">Economia</option>
+                            <option value="sociedade">Sociedade</option>
+                            <option value="arquitetura">Arquitetura e patrimônio</option>
+                            <option value="ciencia">Ciência e tecnologia</option>
+                            <option value="outra">Outra</option>
+                        </select>
+                    </p>
+
+                    <p>
+                        <label for="filtro-ano-inicial">Período: de</label>
+                        <input type="number" id="filtro-ano-inicial" name="filtro-ano-inicial" min="1" max="2100" placeholder="Ano inicial">
+                        <label for="filtro-ano-final">até</label>
+                        <input type="number" id="filtro-ano-final" name="filtro-ano-final" min="1" max="2100" placeholder="Ano final">
+                    </p>
+
+                    <p>
+                        <label for="filtro-pessoa">Pessoa relacionada</label><br>
+                        <input type="text" id="filtro-pessoa" name="filtro-pessoa" placeholder="Nome da pessoa">
+                    </p>
+
+                    <p>
+                        <button type="button">Aplicar filtros</button>
+                        <button type="reset">Limpar filtros</button>
+                    </p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Ordenar</legend>
+                    <p>
+                        <label for="ordenar-por">Ordenar por</label>
+                        <select id="ordenar-por" name="ordenar-por">
+                            <option value="titulo">Título</option>
+                            <option value="data">Data</option>
+                        </select>
+
+                        <label for="ordem">Ordem</label>
+                        <select id="ordem" name="ordem">
+                            <option value="asc">Crescente</option>
+                            <option value="desc">Decrescente</option>
+                        </select>
+                    </p>
+                </fieldset>
+            </form>
+
+            <!-- Listagem em tabela -->
+            <section aria-labelledby="titulo-tabela">
+                <h3 id="titulo-tabela">Lista de registros</h3>
+
+                <table border="1" cellpadding="6">
+                    <caption>Registros históricos cadastrados (dados fictícios)</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Título</th>
+                            <th scope="col">Categoria</th>
+                            <th scope="col">Data / período</th>
+                            <th scope="col">Local</th>
+                            <th scope="col">Pessoas relacionadas</th>
+                            <th scope="col">Fonte</th>
+                            <th scope="col">Ações</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <th scope="row">Inauguração da Estação Ferroviária de Vila Nova</th>
+                            <td>Arquitetura e patrimônio</td>
+                            <td><time datetime="1888-05-14">14/05/1888</time></td>
+                            <td>Vila Nova, MG</td>
+                            <td>Joaquim Almeida</td>
+                            <td>Arquivo Municipal (fictício)</td>
+                            <td>
+                                <button type="button">Ver detalhes</button>
+                                <button type="button">Editar</button>
+                                <button type="button">Excluir</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">Primeira Feira de Cultura Popular</th>
+                            <td>Cultura</td>
+                            <td><time datetime="1952-07-20">20/07/1952</time></td>
+                            <td>Vila Nova, MG</td>
+                            <td>Maria das Dores, Antônio Ferreira</td>
+                            <td>Jornal Voz da Cidade (fictício)</td>
+                            <td>
+                                <button type="button">Ver detalhes</button>
+                                <button type="button">Editar</button>
+                                <button type="button">Excluir</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">Ciclo do café na região</th>
+                            <td>Economia</td>
+                            <td><time datetime="1870">1870</time> a <time datetime="1930">1930</time></td>
+                            <td>Sul de Minas, MG</td>
+                            <td>Coronel Benedito Rocha</td>
+                            <td>Livro "Terra e Café" (fictício)</td>
+                            <td>
+                                <button type="button">Ver detalhes</button>
+                                <button type="button">Editar</button>
+                                <button type="button">Excluir</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">Criação do primeiro grupo escolar</th>
+                            <td>Sociedade</td>
+                            <td><time datetime="1911">1911</time></td>
+                            <td>Vila Nova, MG</td>
+                            <td>Profa. Helena Duarte</td>
+                            <td>Acervo da Escola Estadual (fictício)</td>
+                            <td>
+                                <button type="button">Ver detalhes</button>
+                                <button type="button">Editar</button>
+                                <button type="button">Excluir</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <nav aria-label="Paginação da lista">
+                    <ul>
+                        <li><a href="#consulta">Anterior</a></li>
+                        <li><a href="#consulta" aria-current="page">1</a></li>
+                        <li><a href="#consulta">2</a></li>
+                        <li><a href="#consulta">Próxima</a></li>
+                    </ul>
+                </nav>
+            </section>
+
+
     
+
+
+
+
+
+
+    <!-- ===================== SOBRE ===================== -->
+        <section id="sobre" aria-labelledby="titulo-sobre">
+            <h2 id="titulo-sobre">Sobre o sistema</h2>
+            <p>
+                O <strong>Memória Viva</strong> permite cadastrar, consultar, editar e excluir
+                registros históricos, sempre acompanhados de suas fontes, para preservar e
+                compartilhar a memória coletiva de forma responsável.
+            </p>
+        </section>
+
+    </main>
+
+    <!-- ===================== RODAPÉ ===================== -->
+    <footer>
+        <p>2026 Memória Viva - Sistema de gerenciamento de registros históricos.</p>
+        <p><small>Projeto acadêmico. Os dados apresentados são fictícios.</small></p>
+
+        <nav aria-label="Links do rodapé">
+            <ul>
+                <li><a href="#cadastro">Cadastrar</a></li>
+                <li><a href="#consulta">Consultar</a></li>
+                <li><a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></li>
+            </ul>
+        </nav>
+    </footer>
+
 </body>
 </html>
