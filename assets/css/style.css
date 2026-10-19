@@ -1,3 +1,31 @@
+/* ===================VARIÁVEIS E RESET================================ */
+
+:root {
+  /* Paleta principal */
+    --marrom: #7b5636;
+    --marrom-escuro: #5f4128;
+    --escuro: #2b2218;
+    --areia: #a99b84;
+    --terracota: #957158;
+    --oliva: #5b5b4d;
+
+    /* Tons derivados */
+    --papel: #f5f0e7;
+    --papel-2: #ebe3d4;
+    --branco: #fffdf9;
+    --borda: #cfc4b0;
+    --borda-campo: #857a66;
+
+    /* Estados */
+    --sucesso: #4d5f36;
+    --perigo: #8c3a28;
+    --perigo-escuro: #6e2c1e;
+
+    /* Medidas */
+    --raio: 0.5rem;
+    --sombra: 0 2px 6px rgba(43, 34, 24, 0.12);
+    --largura-max: 75rem;
+}
 
 /* Box Model: largura/altura passam a incluir padding e borda */
 *,
