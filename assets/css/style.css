@@ -1047,3 +1047,158 @@ tbody tr:last-child td {
 .forum-novo {
     margin-top: 1.5rem;
 }
+
+/* ===================================MEDIA QUERIES=========================================== */
+
+/* Telas grandes: cabeçalho fixo no topo */
+@media (min-width: 900px) {
+    .topo {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .painel {
+        scroll-margin-top: 6rem;
+    }
+
+    .registro-lateral {
+        position: sticky;
+        top: 6rem;
+    }
+}
+
+/* Tablets e telas médias */
+@media (max-width: 900px) {
+    .filtros {
+        grid-template-columns: 1fr;
+    }
+
+    .detalhes-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Celulares */
+@media (max-width: 640px) {
+    .topo {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .menu {
+        width: 100%;
+    }
+
+    .menu ul {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .menu a {
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .conteudo {
+        gap: 1.25rem;
+    }
+
+    fieldset {
+        padding: 0.75rem 0.9rem 1rem;
+    }
+
+    .ficha {
+        grid-template-columns: 1fr;
+        gap: 0.1rem;
+    }
+
+    .ficha dd {
+        margin-bottom: 0.75rem;
+    }
+
+    /* Botões ocupam a largura toda para facilitar o toque */
+    .form-acoes button,
+    .campo-acao button {
+        flex: 1 1 100%;
+    }
+
+    /* Tabelas viram blocos empilhados (um registro por "cartão") */
+    .tabela-wrapper {
+        border: 0;
+    }
+
+    table,
+    tbody,
+    tr,
+    th,
+    td {
+        display: block;
+    }
+
+    caption {
+        display: block;
+        border-radius: var(--raio);
+        margin-bottom: 0.75rem;
+    }
+
+  /* Cabeçalho da tabela oculto visualmente, mas acessível a leitores de tela */
+    thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+}
+tbody tr {
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    background-color: var(--papel);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+}
+
+tbody tr:nth-child(even) {
+    background-color: var(--papel);
+}
+
+tbody th,
+td {
+    padding: 0.4rem 1rem;
+    border-bottom: 0;
+}
+
+tbody th {
+    font-size: 1.1rem;
+    color: var(--marrom-escuro);
+}
+
+td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--oliva);
+}
+
+
+/* Respeita usuários que preferem menos movimento */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+    }
+
+    .cartao:hover,
+    .cartao:focus-within {
+        transform: none;
+    }
+}
