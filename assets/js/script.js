@@ -480,4 +480,237 @@ function iniciar() {
     atualizarTudo();
 }
 
-iniciar();
+function atualizarCamposData() {
+    const tipo = $('tipo-data').value;
+    const camposPorTipo = {
+        exata: ['data-inicio'],
+        ano: ['ano'],
+        periodo: ['data-inicio', 'data-fim'],
+        aproximada: ['data-inicio', 'ano'],
+    };
+    const visiveis = camposPorTipo[tipo] || [];
+    for (const id of ['data-inicio', 'data-fim', 'ano']) {
+        $(id).closest('.campo').hidden = !visiveis.includes(id);
+    }
+
+    const rotuloInicio = document.querySelector('label[for="data-inicio"]');
+    const rotulos = {
+        exata: 'Data *',
+        periodo: 'Data de início *',
+        aproximada: 'Data aproximada (ou informe só o ano)',
+    };
+    rotuloInicio.textContent = rotulos[tipo] || 'Data';
+    document.querySelector('label[for="ano"]').textContent =
+        tipo === 'ano' ? 'Ano *' : 'Ano (opcional)';
+}
+
+function lerFormulario() {
+    return {
+        titulo: $('titulo').value.trim(),
+        descricao: $('descricao').value.trim(),
+        categoria: $('categoria').value,
+        tipoData: $('tipo-data').value,
+        dataInicio: $('data-inicio').value,
+        dataFim: $('data-fim').value,
+        ano: $('ano').value.trim(),
+        local: $('local').value.trim(),
+        latitude: $('latitude').value.trim(),
+        longitude: $('longitude').value.trim(),
+        pessoas: separarLista($('pessoas').value, ','),
+        fonte: $('fonte').value.trim(),
+        linkFonte: $('link-fonte').value.trim(),
+        referencias: separarLista($('referencias').value, '\n'),
+        urlImagem: $('url-imagem').value.trim(),
+        autorImagem: $('autor-imagem').value.trim(),
+        licencaImagem: $('licenca-imagem').value,
+    };
+}
+
+function validarDados(d) {
+    const erros = {};
+    const anoAtual = new Date().getFullYear();
+    const hoje = hojeISO();
+
+    if (d.titulo.length < 3) erros['titulo'] = 'Informe um título com pelo menos 3 caracteres.';
+    if (d.descricao.length < 20) erros['descricao'] = 'A descrição deve ter pelo menos 20 caracteres.';
+    if (!d.categoria) erros['categoria'] = 'Selecione uma categoria.';
+
+    const validarAno = (obrigatorio) => {
+        if (d.ano === '') {
+            if (obrigatorio) erros['ano'] = 'Informe o ano.';
+            return;
+        }
+        const numero = Number(d.ano);
+        if (!Number.isInteger(numero) || numero < 1 || numero > anoAtual) {
+            erros['ano'] = `Informe um ano entre 1 e ${anoAtual}.`;
+        }
+    };
+
+    switch (d.tipoData) {
+        case 'exata':
+            if (!d.dataInicio) erros['data-inicio'] = 'Informe a data do acontecimento.';
+            else if (d.dataInicio > hoje) erros['data-inicio'] = 'A data não pode estar no futuro.';
+            break;
+        case 'ano':
+            validarAno(true);
+            break;
+        case 'periodo':
+            if (!d.dataInicio) erros['data-inicio'] = 'Informe a data de início.';
+            else if (d.dataInicio > hoje) erros['data-inicio'] = 'A data não pode estar no futuro.';
+            if (!d.dataFim) erros['data-fim'] = 'Informe a data de fim.';
+            else if (d.dataFim > hoje) erros['data-fim'] = 'A data de fim não pode estar no futuro.';
+            else if (d.dataInicio && d.dataFim < d.dataInicio) {
+                erros['data-fim'] = 'A data de fim deve ser igual ou posterior à de início.';
+            }
+            break;
+        case 'aproximada':
+            if (!d.dataInicio && d.ano === '') {
+                erros['data-inicio'] = 'Informe uma data aproximada ou o ano.';
+            } else if (d.dataInicio > hoje) {
+                erros['data-inicio'] = 'A data não pode estar no futuro.';
+            }
+            validarAno(false);
+            break;
+    }
+
+    const temLat = d.latitude !== '';
+    const temLng = d.longitude !== '';
+    if (temLat !== temLng) {
+        erros[temLat ? 'longitude' : 'latitude'] = 'Informe latitude e longitude juntas.';
+    } else if (temLat) {
+        const lat = Number(d.latitude);
+        const lng = Number(d.longitude);
+        if (!Number.isFinite(lat) || lat < -90 || lat > 90) erros['latitude'] = 'Latitude entre -90 e 90.';
+        if (!Number.isFinite(lng) || lng < -180 || lng > 180) erros['longitude'] = 'Longitude entre -180 e 180.';
+    }
+
+    if (d.fonte.length < 3) erros['fonte'] = 'Informe a fonte das informações (mínimo 3 caracteres).';
+    if (d.linkFonte && !urlValida(d.linkFonte)) {
+        erros['link-fonte'] = 'Informe um endereço válido, começando com http:// ou https://.';
+    }
+
+    if (d.urlImagem && !urlValida(d.urlImagem)) {
+        erros['url-imagem'] = 'Informe um endereço válido, começando com http:// ou https://.';
+    }
+    const temImagem = Boolean(estado.imagemUpload || (d.urlImagem && !erros['url-imagem']));
+    if (temImagem) {
+        if (!d.autorImagem) erros['autor-imagem'] = 'Informe o autor da imagem (ou "Desconhecido").';
+        if (!d.licencaImagem) erros['licenca-imagem'] = 'Selecione a licença da imagem.';
+    }
+
+    return erros;
+}
+
+function exibirErros(erros) {
+    let primeiro = null;
+    for (const [id, mensagem] of Object.entries(erros)) {
+        const campo = $(id);
+        if (!campo) continue;
+        const idErro = `erro-${id}`;
+        const paragrafo = el('p', {
+            classe: 'mensagem-campo mensagem-campo--erro',
+            id: idErro,
+            texto: mensagem,
+        });
+        (campo.closest('.campo') || campo.parentElement).append(paragrafo);
+        campo.setAttribute('aria-invalid', 'true');
+        campo.setAttribute('aria-describedby', idErro);
+        if (!primeiro) primeiro = campo;
+    }
+    if (primeiro) primeiro.focus();
+}
+
+function limparErros(formulario) {
+    formulario.querySelectorAll('[aria-invalid]').forEach((campo) => {
+        campo.removeAttribute('aria-invalid');
+        campo.removeAttribute('aria-describedby');
+    });
+    formulario.querySelectorAll('.mensagem-campo--erro').forEach((p) => p.remove());
+}
+
+function limparErroDoCampo(evento) {
+    const campo = evento.target;
+    if (!campo.hasAttribute || !campo.hasAttribute('aria-invalid')) return;
+    campo.removeAttribute('aria-invalid');
+    campo.removeAttribute('aria-describedby');
+    const mensagem = $(`erro-${campo.id}`);
+    if (mensagem) mensagem.remove();
+}
+
+function montarRegistro(d, base = {}) {
+    const urlFinal = estado.imagemUpload || d.urlImagem;
+    return {
+        id: base.id || gerarId('r'),
+        titulo: d.titulo,
+        descricao: d.descricao,
+        categoria: d.categoria,
+        tipoData: d.tipoData,
+        dataInicio: d.tipoData === 'ano' ? '' : d.dataInicio,
+        dataFim: d.tipoData === 'periodo' ? d.dataFim : '',
+        ano: d.tipoData === 'ano' || d.tipoData === 'aproximada' ? d.ano : '',
+        local: d.local,
+        latitude: d.latitude === '' ? null : Number(d.latitude),
+        longitude: d.longitude === '' ? null : Number(d.longitude),
+        pessoas: d.pessoas,
+        fonte: d.fonte,
+        linkFonte: d.linkFonte,
+        referencias: d.referencias,
+        imagem: urlFinal
+            ? {
+                url: urlFinal,
+                autor: d.autorImagem,
+                licenca: d.licencaImagem,
+                paginaOrigem: estado.imagemPagina,
+            }
+            : null,
+        comentarios: base.comentarios || [],
+        criadoEm: base.criadoEm || new Date().toISOString(),
+    };
+}
+
+function aoEnviarFormulario(evento) {
+    evento.preventDefault();
+    const formulario = evento.currentTarget;
+    limparErros(formulario);
+
+    const dados = lerFormulario();
+    const erros = validarDados(dados);
+    if (Object.keys(erros).length > 0) {
+        exibirErros(erros);
+        mostrarMensagem('erro', 'Não foi possível salvar. Corrija os campos destacados.');
+        return;
+    }
+
+    const novo = montarRegistro(dados);
+    estado.registros = [...estado.registros, novo];
+
+    formulario.reset();
+    atualizarTudo();
+    mostrarMensagem('sucesso', 'Registro salvo com sucesso!');
+    $('consulta').scrollIntoView({ behavior: 'smooth' });
+}
+
+function aoLimparFormulario() {
+    limparErros($('form-registro'));
+    estado.imagemUpload = '';
+    estado.imagemPagina = '';
+    setTimeout(() => {
+        atualizarCamposData();
+    }, 0);
+}
+
+function registrarEventosFormulario() {
+    const formulario = $('form-registro');
+    formulario.addEventListener('submit', aoEnviarFormulario);
+    formulario.addEventListener('input', limparErroDoCampo);
+    formulario.addEventListener('reset', aoLimparFormulario);
+    $('tipo-data').addEventListener('change', atualizarCamposData);
+}
+
+function iniciar() {
+    estado.registros = [...REGISTROS_EXEMPLO];
+    registrarEventosListagem();
+    registrarEventosFormulario();
+    atualizarCamposData();
+    atualizarTudo();
+}
