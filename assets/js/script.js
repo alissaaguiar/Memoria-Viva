@@ -484,6 +484,8 @@ function registrarEventosListagem() {
 
 function atualizarTudo() {
     renderizarListagem();
+    renderizarLinhaDoTempo();
+    preencherSeletorMapa();
 }
 
 function iniciar() {
@@ -495,7 +497,10 @@ function iniciar() {
     registrarEventosFormulario();
     registrarEventosExclusao();
     registrarEventosConsulta();
+    registrarEventosImagem();
+    registrarEventosMapa();
 
+    atualizarMapa(null);
     atualizarCamposData();
     atualizarTudo();
 }
@@ -732,6 +737,7 @@ function aoLimparFormulario() {
         atualizarCamposData();
     }, 0);
     sairModoEdicao();
+    atualizarPrevia();
 }
 
 function registrarEventosFormulario() {
@@ -918,6 +924,7 @@ function exibirDetalhes(id, { rolar = true } = {}) {
     $('detalhes-vazio').hidden = true;
     $('detalhes-conteudo').hidden = false;
     renderizarListagem();
+    atualizarMapa(id);
 
     if (rolar) {
         $('detalhes').scrollIntoView({ behavior: 'smooth' });
@@ -929,6 +936,7 @@ function ocultarDetalhes() {
     estado.idSelecionado = null;
     $('detalhes-conteudo').hidden = true;
     $('detalhes-vazio').hidden = false;
+    atualizarMapa(null);
 }
 
 function preencherFormulario(reg) {
@@ -955,7 +963,9 @@ function preencherFormulario(reg) {
         $('licenca-imagem').value = reg.imagem.licenca;
         estado.imagemPagina = reg.imagem.paginaOrigem || '';
     }
+
     atualizarCamposData();
+    atualizarPrevia();
 }
 
 function iniciarEdicao(id) {
@@ -1098,3 +1108,328 @@ function ordenarRegistros(lista, ordenarPor, ordem) {
         return comparacao * fator;
     });
 }
+
+// ============ integração apis ==============
+
+
+const URL_API_COMMONS = 'https://commons.wikimedia.org/w/api.php';
+
+/** Remove marcações HTML (a API devolve o autor com tags). */
+function textoPuro(html) {
+    return new DOMParser().parseFromString(html, 'text/html').body.textContent.trim();
+}
+
+/** Converte o texto da licença da API para as opções do nosso <select>. */
+function mapearLicenca(texto) {
+    const t = texto.toLowerCase();
+    if (t.includes('public domain') || t.includes('domínio público')) return 'dominio-publico';
+    if (t.includes('cc0')) return 'cc0';
+    if (t.includes('cc by-sa')) return 'cc-by-sa';
+    if (t.startsWith('cc by')) return 'cc-by';
+    return 'outra';
+}
+
+async function buscarImagensCommons(termo) {
+    const parametros = new URLSearchParams({
+        action: 'query',
+        format: 'json',
+        origin: '*', // permite a chamada direto do navegador (CORS)
+        generator: 'search',
+        gsrsearch: `${termo} filetype:bitmap`,
+        gsrnamespace: '6', // namespace "File"
+        gsrlimit: '9',
+        prop: 'imageinfo',
+        iiprop: 'url|extmetadata',
+        iiurlwidth: '640',
+    });
+
+    const resposta = await fetch(`${URL_API_COMMONS}?${parametros}`);
+    if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+    const dados = await resposta.json();
+
+    const paginas = dados.query ? Object.values(dados.query.pages) : [];
+    return paginas
+        .sort((a, b) => a.index - b.index)
+        .filter((pagina) => pagina.imageinfo && pagina.imageinfo[0])
+        .map((pagina) => {
+            const info = pagina.imageinfo[0];
+            const meta = info.extmetadata || {};
+            return {
+                titulo: pagina.title.replace(/^File:/, '').replace(/\.[^.]+$/, ''),
+                miniatura: info.thumburl || info.url,
+                paginaOrigem: info.descriptionurl,
+                autor: textoPuro((meta.Artist && meta.Artist.value) || ''),
+                licenca: (meta.LicenseShortName && meta.LicenseShortName.value) || '',
+            };
+        });
+}
+
+function definirStatusImagens(texto) {
+    $('status-imagens').textContent = texto;
+}
+
+function renderizarResultadosImagens(imagens) {
+    $('resultados-imagem').replaceChildren(
+        ...imagens.map((imagem) =>
+            el(
+                'li',
+                {},
+                el(
+                    'figure',
+                    {},
+                    el('img', {
+                        src: imagem.miniatura,
+                        alt: `Resultado da Wikimedia Commons: ${imagem.titulo}`,
+                        loading: 'lazy',
+                    }),
+                    el('figcaption', { texto: resumir(imagem.titulo, 60) })
+                ),
+                el('button', {
+                    type: 'button',
+                    texto: 'Usar esta imagem',
+                    onclick: () => usarImagemCommons(imagem),
+                })
+            )
+        )
+    );
+}
+
+async function aoPesquisarImagem() {
+    const termo = $('busca-imagem').value.trim();
+    if (termo.length < 2) {
+        definirStatusImagens('Digite pelo menos 2 caracteres para pesquisar imagens.');
+        return;
+    }
+
+    const botao = $('btn-buscar-imagem');
+    botao.disabled = true;
+    $('resultados-imagem').setAttribute('aria-busy', 'true');
+    definirStatusImagens('Buscando imagens na Wikimedia Commons…');
+
+    try {
+        const imagens = await buscarImagensCommons(termo);
+        renderizarResultadosImagens(imagens);
+        definirStatusImagens(
+            imagens.length
+                ? `${imagens.length} imagem(ns) encontrada(s). Confira a licença antes de usar.`
+                : 'Nenhuma imagem encontrada. Tente outro termo.'
+        );
+    } catch (erro) {
+        console.error('Falha na API da Wikimedia Commons:', erro);
+        $('resultados-imagem').replaceChildren();
+        definirStatusImagens('Não foi possível consultar a Wikimedia Commons. Verifique sua conexão e tente novamente.');
+    } finally {
+        botao.disabled = false;
+        $('resultados-imagem').removeAttribute('aria-busy');
+    }
+}
+
+/** Associa a imagem escolhida ao formulário de cadastro. */
+function usarImagemCommons(imagem) {
+    estado.imagemUpload = '';
+    $('arquivo-imagem').value = '';
+    estado.imagemPagina = imagem.paginaOrigem;
+
+    $('url-imagem').value = imagem.miniatura;
+    $('autor-imagem').value = imagem.autor || '';
+    $('licenca-imagem').value = imagem.licenca ? mapearLicenca(imagem.licenca) : '';
+
+    limparErroDoCampo({ target: $('url-imagem') });
+    limparErroDoCampo({ target: $('autor-imagem') });
+    limparErroDoCampo({ target: $('licenca-imagem') });
+    atualizarPrevia();
+    mostrarMensagem('info', 'Imagem selecionada. Confira o autor e a licença antes de salvar o registro.');
+}
+
+/** Atualiza a pré-visualização da imagem do formulário. */
+function atualizarPrevia() {
+    const campoUrl = $('url-imagem').value.trim();
+    const url = estado.imagemUpload || (urlValida(campoUrl) ? campoUrl : '');
+    const previa = $('previa-imagem');
+    if (!url) {
+        previa.hidden = true;
+        return;
+    }
+    $('previa-img').src = url;
+    $('previa-legenda').textContent = 'Imagem selecionada para este registro.';
+    previa.hidden = false;
+}
+
+function aoEscolherArquivo(evento) {
+    const arquivo = evento.target.files[0];
+    if (!arquivo) return;
+
+    if (!arquivo.type.startsWith('image/')) {
+        mostrarMensagem('erro', 'Escolha um arquivo de imagem (JPG, PNG, WebP...).');
+        evento.target.value = '';
+        return;
+    }
+    if (arquivo.size > TAMANHO_MAXIMO_UPLOAD) {
+        mostrarMensagem(
+            'erro',
+            `A imagem tem ${Math.round(arquivo.size / 1024)} KB. O limite é ${TAMANHO_MAXIMO_UPLOAD / 1024} KB, pois os dados ficam salvos no navegador.`,
+            7000
+        );
+        evento.target.value = '';
+        return;
+    }
+
+    const leitor = new FileReader();
+    leitor.addEventListener('load', () => {
+        estado.imagemUpload = leitor.result;
+        estado.imagemPagina = '';
+        $('url-imagem').value = '';
+        atualizarPrevia();
+    });
+    leitor.addEventListener('error', () => mostrarMensagem('erro', 'Não foi possível ler o arquivo.'));
+    leitor.readAsDataURL(arquivo);
+}
+
+function removerImagem() {
+    estado.imagemUpload = '';
+    estado.imagemPagina = '';
+    $('url-imagem').value = '';
+    $('autor-imagem').value = '';
+    $('licenca-imagem').value = '';
+    $('arquivo-imagem').value = '';
+    atualizarPrevia();
+}
+
+function registrarEventosImagem() {
+    $('btn-buscar-imagem').addEventListener('click', aoPesquisarImagem);
+    // Enter no campo de busca pesquisa imagens (e não envia o formulário)
+    $('busca-imagem').addEventListener('keydown', (evento) => {
+        if (evento.key === 'Enter') {
+            evento.preventDefault();
+            aoPesquisarImagem();
+        }
+    });
+    $('arquivo-imagem').addEventListener('change', aoEscolherArquivo);
+    $('btn-remover-imagem').addEventListener('click', removerImagem);
+    $('url-imagem').addEventListener('input', () => {
+        // Digitar uma URL própria substitui qualquer imagem anterior
+        estado.imagemUpload = '';
+        estado.imagemPagina = '';
+        atualizarPrevia();
+    });
+    $('previa-img').addEventListener('error', () => {
+        $('previa-legenda').textContent = 'Não foi possível carregar a imagem deste endereço.';
+    });
+}
+
+
+function renderizarLinhaDoTempo() {
+    const ordenados = ordenarRegistros(estado.registros, 'data', 'asc');
+    if (ordenados.length === 0) {
+        $('linha-tempo-lista').replaceChildren(el('li', { texto: 'Nenhum registro cadastrado.' }));
+        return;
+    }
+    $('linha-tempo-lista').replaceChildren(
+        ...ordenados.map((reg) =>
+            el(
+                'li',
+                {},
+                el('time', { datetime: chaveData(reg), texto: chaveData(reg).slice(0, 4).replace(/^0+/, '') }),
+                ' – ',
+                el('a', {
+                    href: '#detalhes',
+                    dados: { acao: 'detalhes', id: reg.id },
+                    texto: reg.titulo,
+                })
+            )
+        )
+    );
+}
+
+function preencherSeletorMapa() {
+    const seletor = $('mapa-registro');
+    const valorAtual = seletor.value;
+    const comCoordenadas = estado.registros.filter(temCoordenadas);
+    seletor.replaceChildren(
+        el('option', { value: '', texto: 'Selecione um registro...' }),
+        ...comCoordenadas.map((reg) => el('option', { value: reg.id, texto: reg.titulo }))
+    );
+    seletor.value = comCoordenadas.some((reg) => reg.id === valorAtual) ? valorAtual : '';
+}
+
+/** Mostra o mapa (OpenStreetMap) do registro, se ele tiver coordenadas. */
+function atualizarMapa(id) {
+    const quadro = $('mapa-quadro');
+    const link = $('mapa-link');
+    const reg = estado.registros.find((r) => r.id === id);
+    $('mapa-registro').value = reg && temCoordenadas(reg) ? id : '';
+
+    if (!reg || !temCoordenadas(reg)) {
+        quadro.replaceChildren(
+            el('p', {
+                classe: 'estado-vazio',
+                texto: reg
+                    ? 'Este registro não possui coordenadas cadastradas.'
+                    : 'Selecione um registro com coordenadas para ver o mapa.',
+            })
+        );
+        link.hidden = true;
+        return;
+    }
+
+    const { latitude: lat, longitude: lng } = reg;
+    const margem = 0.01;
+    const origem =
+        'https://www.openstreetmap.org/export/embed.html' +
+        `?bbox=${lng - margem}%2C${lat - margem}%2C${lng + margem}%2C${lat + margem}` +
+        `&layer=mapnik&marker=${lat}%2C${lng}`;
+    quadro.replaceChildren(
+        el('iframe', { src: origem, title: `Mapa: ${reg.local || reg.titulo}`, loading: 'lazy' })
+    );
+    link.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+    link.hidden = false;
+}
+
+/** API Nominatim (OpenStreetMap): converte o nome do local em latitude/longitude. */
+async function buscarCoordenadas() {
+    const local = $('local').value.trim();
+    if (local.length < 3) {
+        mostrarMensagem('aviso', 'Informe o local (mínimo 3 caracteres) antes de buscar as coordenadas.');
+        $('local').focus();
+        return;
+    }
+
+    const botao = $('btn-geocodificar');
+    botao.disabled = true;
+    botao.textContent = 'Buscando…';
+
+    try {
+        const parametros = new URLSearchParams({
+            q: local,
+            format: 'json',
+            limit: '1',
+            'accept-language': 'pt-BR',
+        });
+        const resposta = await fetch(`https://nominatim.openstreetmap.org/search?${parametros}`);
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        const resultados = await resposta.json();
+
+        if (resultados.length === 0) {
+            mostrarMensagem('aviso', 'Nenhuma coordenada encontrada para este local. Informe manualmente, se desejar.');
+            return;
+        }
+        $('latitude').value = Number(resultados[0].lat).toFixed(5);
+        $('longitude').value = Number(resultados[0].lon).toFixed(5);
+        limparErroDoCampo({ target: $('latitude') });
+        limparErroDoCampo({ target: $('longitude') });
+        mostrarMensagem('sucesso', `Coordenadas encontradas para: ${resumir(resultados[0].display_name, 70)}`);
+    } catch (erro) {
+        console.error('Falha na API Nominatim:', erro);
+        mostrarMensagem('erro', 'Não foi possível buscar as coordenadas agora. Tente novamente mais tarde.');
+    } finally {
+        botao.disabled = false;
+        botao.textContent = 'Buscar coordenadas';
+    }
+}
+
+function registrarEventosMapa() {
+    $('btn-geocodificar').addEventListener('click', buscarCoordenadas);
+    $('mapa-registro').addEventListener('change', (evento) => atualizarMapa(evento.target.value));
+}
+
+iniciar();
