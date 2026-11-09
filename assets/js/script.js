@@ -1,3 +1,5 @@
+'use strict';
+
 // ---- Constantes ----------------------------------------------------------
 const CHAVE_REGISTROS = 'memoriaViva:registros';
 const CHAVE_FORUM = 'memoriaViva:forum';
@@ -454,7 +456,7 @@ function renderizarListagem() {
 function aoClicarAcao(evento) {
     const alvo = evento.target.closest('[data-acao]');
     if (!alvo) return;
-    const { acao, pagina } = alvo.dataset;
+    const { acao, id, pagina } = alvo.dataset;
     if (alvo.tagName === 'A') evento.preventDefault();
 
     switch (acao) {
@@ -480,29 +482,6 @@ function aoClicarAcao(evento) {
 
 function registrarEventosListagem() {
     document.addEventListener('click', aoClicarAcao);
-}
-
-function atualizarTudo() {
-    renderizarListagem();
-    renderizarLinhaDoTempo();
-    preencherSeletorMapa();
-}
-
-function iniciar() {
-    const primeiraVez = lerJSON(CHAVE_REGISTROS, null) === null;
-    estado.registros = carregarRegistros();
-    if (primeiraVez) gravarJSON(CHAVE_REGISTROS, estado.registros);
-
-    registrarEventosListagem();
-    registrarEventosFormulario();
-    registrarEventosExclusao();
-    registrarEventosConsulta();
-    registrarEventosImagem();
-    registrarEventosMapa();
-
-    atualizarMapa(null);
-    atualizarCamposData();
-    atualizarTudo();
 }
 
 function atualizarCamposData() {
@@ -706,9 +685,6 @@ function aoEnviarFormulario(evento) {
         return;
     }
 
-    const novo = montarRegistro(dados);
-    if (!aplicarAlteracao([...estado.registros, novo])) return;
-
     if (estado.idEmEdicao) {
         const original = estado.registros.find((r) => r.id === estado.idEmEdicao);
         if (!original) {
@@ -727,17 +703,40 @@ function aoEnviarFormulario(evento) {
         $('consulta').scrollIntoView({ behavior: 'smooth' });
         return;
     }
+
+    // Novo cadastro
+    const novo = montarRegistro(dados);
+    if (!aplicarAlteracao([...estado.registros, novo])) return;
+
+    formulario.reset();
+    atualizarTudo();
+    mostrarMensagem('sucesso', 'Registro salvo com sucesso!');
+    $('consulta').scrollIntoView({ behavior: 'smooth' });
 }
 
 function aoLimparFormulario() {
     limparErros($('form-registro'));
+    sairModoEdicao(); // COMMIT 6
+    estado.imagemUpload = '';
+    estado.imagemPagina = '';
+    // O reset do navegador acontece depois deste evento; por isso o setTimeout.
+    setTimeout(() => {
+        atualizarCamposData();
+        atualizarPrevia(); 
+    }, 0);
+}
+
+
+
+function aoLimparFormulario() {
+    limparErros($('form-registro'));
+    sairModoEdicao();
     estado.imagemUpload = '';
     estado.imagemPagina = '';
     setTimeout(() => {
         atualizarCamposData();
+        atualizarPrevia();
     }, 0);
-    sairModoEdicao();
-    atualizarPrevia();
 }
 
 function registrarEventosFormulario() {
@@ -925,6 +924,7 @@ function exibirDetalhes(id, { rolar = true } = {}) {
     $('detalhes-conteudo').hidden = false;
     renderizarListagem();
     atualizarMapa(id);
+    renderizarComentarios(reg);
 
     if (rolar) {
         $('detalhes').scrollIntoView({ behavior: 'smooth' });
@@ -1430,6 +1430,275 @@ async function buscarCoordenadas() {
 function registrarEventosMapa() {
     $('btn-geocodificar').addEventListener('click', buscarCoordenadas);
     $('mapa-registro').addEventListener('change', (evento) => atualizarMapa(evento.target.value));
+}
+
+// ========== comentários ================
+
+function criarMensagem(mensagem, aoExcluir) {
+    return el(
+        'article',
+        { classe: 'comentario' },
+        el(
+            'header',
+            {},
+            el(
+                'p',
+                {},
+                el('strong', { texto: mensagem.autor }),
+                ' · ',
+                el('time', { datetime: mensagem.data, texto: formatarDataHora(mensagem.data) })
+            ),
+            el('button', {
+                type: 'button',
+                classe: 'botao--pequeno botao--perigo',
+                'aria-label': `Excluir mensagem de ${mensagem.autor}`,
+                texto: 'Excluir',
+                onclick: aoExcluir,
+            })
+        ),
+        el('p', { texto: mensagem.texto })
+    );
+}
+
+function validarMensagem(idAutor, idTexto, autor, texto, minimoTexto = 5) {
+    const erros = {};
+    if (autor.length < 2) erros[idAutor] = 'Informe seu nome (mínimo 2 caracteres).';
+    if (texto.length < minimoTexto) erros[idTexto] = `Escreva pelo menos ${minimoTexto} caracteres.`;
+    return erros;
+}
+
+function renderizarComentarios(reg) {
+    $('lista-comentarios').replaceChildren(
+        ...(reg.comentarios.length
+            ? reg.comentarios.map((comentario) =>
+                criarMensagem(comentario, () => excluirComentario(reg.id, comentario.id))
+            )
+            : [el('p', { texto: 'Ainda não há comentários neste registro.' })])
+    );
+}
+
+function aoEnviarComentario(evento) {
+    evento.preventDefault();
+    const formulario = evento.currentTarget;
+    limparErros(formulario);
+
+    const autor = $('comentario-nome').value.trim();
+    const texto = $('comentario-texto').value.trim();
+    const erros = validarMensagem('comentario-nome', 'comentario-texto', autor, texto);
+    if (Object.keys(erros).length > 0) {
+        exibirErros(erros);
+        return;
+    }
+
+    const id = estado.idSelecionado;
+    const comentario = { id: gerarId('c'), autor, texto, data: new Date().toISOString() };
+    if (!atualizarRegistro(id, (r) => ({ ...r, comentarios: [...r.comentarios, comentario] }))) return;
+
+    formulario.reset();
+    renderizarComentarios(estado.registros.find((r) => r.id === id));
+    mostrarMensagem('sucesso', 'Comentário publicado!');
+}
+
+function excluirComentario(idRegistro, idComentario) {
+    if (!confirm('Excluir este comentário?')) return;
+    const alterou = atualizarRegistro(idRegistro, (r) => ({
+        ...r,
+        comentarios: r.comentarios.filter((c) => c.id !== idComentario),
+    }));
+    if (alterou) renderizarComentarios(estado.registros.find((r) => r.id === idRegistro));
+}
+
+function registrarEventosComentarios() {
+    const formulario = $('form-comentario');
+    formulario.addEventListener('submit', aoEnviarComentario);
+    formulario.addEventListener('input', limparErroDoCampo);
+}
+
+// =========== fórum ============
+
+function ultimaAtividade(topico) {
+    const ultima = topico.respostas[topico.respostas.length - 1];
+    return ultima ? ultima.data : topico.criadoEm;
+}
+
+function criarFormularioResposta(topico) {
+    const idAutor = `resp-autor-${topico.id}`;
+    const idTexto = `resp-texto-${topico.id}`;
+    const formulario = el(
+        'form',
+        { novalidate: true, onsubmit: (evento) => aoEnviarResposta(evento, topico.id, idAutor, idTexto) },
+        el(
+            'fieldset',
+            { classe: 'campos' },
+            el('legend', { texto: 'Responder' }),
+            el(
+                'div',
+                { classe: 'campo' },
+                el('label', { for: idAutor, texto: 'Seu nome' }),
+                el('input', { type: 'text', id: idAutor, autocomplete: 'name' })
+            ),
+            el(
+                'div',
+                { classe: 'campo campo--largo' },
+                el('label', { for: idTexto, texto: 'Resposta' }),
+                el('textarea', { id: idTexto, rows: '3' })
+            ),
+            el('div', { classe: 'campo--largo' }, el('button', { type: 'submit', texto: 'Enviar resposta' }))
+        )
+    );
+    formulario.addEventListener('input', limparErroDoCampo);
+    return formulario;
+}
+
+function criarTopico(topico, aberto) {
+    const quantidade = topico.respostas.length;
+    const meta =
+        `por ${topico.autor} · ${quantidade} ${quantidade === 1 ? 'resposta' : 'respostas'}` +
+        ` · última atividade em ${formatarDataHora(ultimaAtividade(topico))}`;
+
+    return el(
+        'details',
+        { classe: 'topico-forum', dados: { id: topico.id }, open: aberto ? true : null },
+        el('summary', {}, topico.assunto, el('span', { classe: 'topico-forum__meta', texto: meta })),
+        el(
+            'div',
+            { classe: 'topico-forum__corpo' },
+            el('p', { texto: topico.mensagem }),
+            el(
+                'div',
+                { classe: 'topico-forum__respostas' },
+                ...topico.respostas.map((resposta) =>
+                    criarMensagem(resposta, () => excluirResposta(topico.id, resposta.id))
+                )
+            ),
+            criarFormularioResposta(topico)
+        )
+    );
+}
+
+function renderizarForum() {
+    const lista = $('lista-forum');
+    const abertos = new Set([...lista.querySelectorAll('details[open]')].map((d) => d.dataset.id));
+    const ordenados = [...estado.forum].sort((a, b) =>
+        ultimaAtividade(b).localeCompare(ultimaAtividade(a))
+    );
+
+    lista.replaceChildren(
+        ...(ordenados.length
+            ? ordenados.map((topico) => criarTopico(topico, abertos.has(topico.id)))
+            : [el('p', { classe: 'estado-vazio', texto: 'Nenhum tópico criado ainda. Seja o primeiro a participar!' })])
+    );
+}
+
+function aoEnviarTopico(evento) {
+    evento.preventDefault();
+    const formulario = evento.currentTarget;
+    limparErros(formulario);
+
+    const autor = $('forum-autor').value.trim();
+    const assunto = $('forum-assunto').value.trim();
+    const mensagem = $('forum-mensagem').value.trim();
+
+    const erros = validarMensagem('forum-autor', 'forum-mensagem', autor, mensagem, 10);
+    if (assunto.length < 5) erros['forum-assunto'] = 'O assunto deve ter pelo menos 5 caracteres.';
+    if (Object.keys(erros).length > 0) {
+        exibirErros(erros);
+        return;
+    }
+
+    const topico = {
+        id: gerarId('t'),
+        assunto,
+        autor,
+        mensagem,
+        criadoEm: new Date().toISOString(),
+        respostas: [],
+    };
+    if (!aplicarAlteracaoForum([...estado.forum, topico])) return;
+
+    formulario.reset();
+    renderizarForum();
+    mostrarMensagem('sucesso', 'Tópico publicado!');
+}
+
+function aoEnviarResposta(evento, idTopico, idAutor, idTexto) {
+    evento.preventDefault();
+    const formulario = evento.currentTarget;
+    limparErros(formulario);
+
+    const autor = $(idAutor).value.trim();
+    const texto = $(idTexto).value.trim();
+    const erros = validarMensagem(idAutor, idTexto, autor, texto);
+    if (Object.keys(erros).length > 0) {
+        exibirErros(erros);
+        return;
+    }
+
+    const resposta = { id: gerarId('p'), autor, texto, data: new Date().toISOString() };
+    const lista = estado.forum.map((t) =>
+        t.id === idTopico ? { ...t, respostas: [...t.respostas, resposta] } : t
+    );
+    if (!aplicarAlteracaoForum(lista)) return;
+
+    renderizarForum();
+    mostrarMensagem('sucesso', 'Resposta publicada!');
+}
+
+function excluirResposta(idTopico, idResposta) {
+    if (!confirm('Excluir esta resposta?')) return;
+    const lista = estado.forum.map((t) =>
+        t.id === idTopico ? { ...t, respostas: t.respostas.filter((r) => r.id !== idResposta) } : t
+    );
+    if (aplicarAlteracaoForum(lista)) renderizarForum();
+}
+
+function carregarForum() {
+    const dados = lerJSON(CHAVE_FORUM, null);
+    if (dados === null) return JSON.parse(JSON.stringify(FORUM_EXEMPLO));
+    return Array.isArray(dados) ? dados : [];
+}
+
+const aplicarAlteracaoForum = (novaLista) => persistir('forum', CHAVE_FORUM, novaLista);
+
+function registrarEventosForum() {
+    const formulario = $('form-forum');
+    formulario.addEventListener('submit', aoEnviarTopico);
+    formulario.addEventListener('input', limparErroDoCampo);
+}
+
+// ============== inicialização ==============
+
+
+function atualizarTudo() {
+    renderizarListagem();
+    renderizarLinhaDoTempo();
+    preencherSeletorMapa();
+}
+
+function iniciar() {
+    const primeiraVez = lerJSON(CHAVE_REGISTROS, null) === null;
+    estado.registros = carregarRegistros();
+    if (primeiraVez) gravarJSON(CHAVE_REGISTROS, estado.registros);
+
+    registrarEventosListagem();
+    registrarEventosFormulario();
+    atualizarCamposData();
+
+    registrarEventosExclusao();
+    registrarEventosConsulta();
+    registrarEventosImagem();
+    registrarEventosMapa();
+    registrarEventosComentarios();
+
+    atualizarMapa(null);
+    atualizarTudo();
+
+    const primeiraVezForum = lerJSON(CHAVE_FORUM, null) === null;
+    estado.forum = carregarForum();
+    if (primeiraVezForum) gravarJSON(CHAVE_FORUM, estado.forum);
+
+    registrarEventosForum();
+    renderizarForum();
 }
 
 iniciar();
