@@ -416,7 +416,7 @@ function renderizarPaginacao(totalPaginas) {
 }
 
 function renderizarListagem() {
-    const visiveis = [...estado.registros];
+    const visiveis = obterRegistrosVisiveis();
     const total = estado.registros.length;
 
     const totalPaginas = Math.max(1, Math.ceil(visiveis.length / ITENS_POR_PAGINA));
@@ -463,6 +463,18 @@ function aoClicarAcao(evento) {
             renderizarListagem();
             $('titulo-tabela').scrollIntoView({ behavior: 'smooth' });
             break;
+
+        case 'detalhes':
+            exibirDetalhes(id);
+            break;
+
+        case 'editar':
+            iniciarEdicao(id);
+            break;
+
+        case 'excluir':
+            pedirConfirmacaoExclusao(id);
+            break;
     }
 }
 
@@ -475,8 +487,16 @@ function atualizarTudo() {
 }
 
 function iniciar() {
-    estado.registros = [...REGISTROS_EXEMPLO];
+    const primeiraVez = lerJSON(CHAVE_REGISTROS, null) === null;
+    estado.registros = carregarRegistros();
+    if (primeiraVez) gravarJSON(CHAVE_REGISTROS, estado.registros);
+
     registrarEventosListagem();
+    registrarEventosFormulario();
+    registrarEventosExclusao();
+    registrarEventosConsulta();
+
+    atualizarCamposData();
     atualizarTudo();
 }
 
@@ -684,10 +704,24 @@ function aoEnviarFormulario(evento) {
     const novo = montarRegistro(dados);
     if (!aplicarAlteracao([...estado.registros, novo])) return;
 
-    formulario.reset();
-    atualizarTudo();
-    mostrarMensagem('sucesso', 'Registro salvo com sucesso!');
-    $('consulta').scrollIntoView({ behavior: 'smooth' });
+    if (estado.idEmEdicao) {
+        const original = estado.registros.find((r) => r.id === estado.idEmEdicao);
+        if (!original) {
+            mostrarMensagem('erro', 'O registro que estava sendo editado não existe mais.');
+            formulario.reset();
+            return;
+        }
+        const atualizado = montarRegistro(dados, original);
+        const lista = estado.registros.map((r) => (r.id === original.id ? atualizado : r));
+        if (!aplicarAlteracao(lista)) return;
+
+        formulario.reset();
+        atualizarTudo();
+        if (estado.idSelecionado === atualizado.id) exibirDetalhes(atualizado.id, { rolar: false });
+        mostrarMensagem('sucesso', 'Registro atualizado com sucesso!');
+        $('consulta').scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
 }
 
 function aoLimparFormulario() {
@@ -697,6 +731,7 @@ function aoLimparFormulario() {
     setTimeout(() => {
         atualizarCamposData();
     }, 0);
+    sairModoEdicao();
 }
 
 function registrarEventosFormulario() {
@@ -705,17 +740,7 @@ function registrarEventosFormulario() {
     formulario.addEventListener('input', limparErroDoCampo);
     formulario.addEventListener('reset', aoLimparFormulario);
     $('tipo-data').addEventListener('change', atualizarCamposData);
-}
-
-function iniciar() {
-    const primeiraVez = lerJSON(CHAVE_REGISTROS, null) === null;
-    estado.registros = carregarRegistros();
-    if (primeiraVez) gravarJSON(CHAVE_REGISTROS, estado.registros);
-
-    registrarEventosListagem();
-    registrarEventosFormulario();
-    atualizarCamposData();
-    atualizarTudo();
+    $('btn-cancelar-edicao').addEventListener('click', () => formulario.reset());
 }
 
 function lerJSON(chave, padrao) {
@@ -786,4 +811,290 @@ const aplicarAlteracao = (novaLista) => persistir('registros', CHAVE_REGISTROS, 
 
 function atualizarRegistro(id, alterar) {
     return aplicarAlteracao(estado.registros.map((r) => (r.id === id ? alterar(r) : r)));
+}
+
+function exibirDetalhes(id, { rolar = true } = {}) {
+    const reg = estado.registros.find((r) => r.id === id);
+    if (!reg) {
+        mostrarMensagem('erro', 'Registro não encontrado.');
+        return;
+    }
+    estado.idSelecionado = id;
+
+    $('detalhe-titulo').textContent = reg.titulo;
+    const etiqueta = $('detalhe-categoria');
+    etiqueta.textContent = CATEGORIAS[reg.categoria] || reg.categoria;
+    etiqueta.dataset.categoria = reg.categoria;
+
+    const figura = $('detalhe-figura');
+    if (reg.imagem) {
+        $('detalhe-imagem').src = reg.imagem.url;
+        $('detalhe-imagem').alt = `Imagem do registro: ${reg.titulo}`;
+        const legenda = [
+            `Autor: ${reg.imagem.autor}`,
+            `Licença: ${LICENCAS[reg.imagem.licenca] || reg.imagem.licenca}`,
+        ].join(' · ');
+        $('detalhe-legenda').replaceChildren(
+            legenda,
+            reg.imagem.paginaOrigem ? ' · ' : '',
+            reg.imagem.paginaOrigem
+                ? el('a', {
+                    href: reg.imagem.paginaOrigem,
+                    target: '_blank',
+                    rel: 'noopener',
+                    texto: 'Página da imagem',
+                })
+                : ''
+        );
+        figura.hidden = false;
+    } else {
+        figura.hidden = true;
+    }
+
+    $('detalhe-descricao').replaceChildren(
+        ...reg.descricao
+            .split(/\n+/)
+            .filter(Boolean)
+            .map((paragrafo) => el('p', { texto: paragrafo }))
+    );
+
+    $('detalhe-data').replaceChildren(
+        el('time', { datetime: chaveData(reg), texto: formatarPeriodo(reg) })
+    );
+    $('detalhe-local').textContent = reg.local || '—';
+    $('detalhe-pessoas').replaceChildren(
+        reg.pessoas.length
+            ? el('ul', {}, ...reg.pessoas.map((pessoa) => el('li', { texto: pessoa })))
+            : '—'
+    );
+    $('detalhe-fonte').replaceChildren(
+        reg.fonte,
+        reg.linkFonte ? ' ' : '',
+        reg.linkFonte
+            ? el('a', { href: reg.linkFonte, target: '_blank', rel: 'noopener', texto: '(acessar fonte)' })
+            : ''
+    );
+    $('detalhe-cadastro').textContent = formatarDataHora(reg.criadoEm);
+
+    $('detalhe-referencias').replaceChildren(
+        ...reg.referencias.map((ref) =>
+            el(
+                'li',
+                {},
+                urlValida(ref) ? el('a', { href: ref, target: '_blank', rel: 'noopener', texto: ref }) : ref
+            )
+        )
+    );
+    $('detalhe-sem-referencias').hidden = reg.referencias.length > 0;
+
+    const pessoasDoRegistro = reg.pessoas.map(normalizar);
+    const relacionados = estado.registros
+        .filter(
+            (outro) =>
+                outro.id !== reg.id &&
+                (outro.categoria === reg.categoria ||
+                    outro.pessoas.some((pessoa) => pessoasDoRegistro.includes(normalizar(pessoa))))
+        )
+        .slice(0, 4);
+    $('detalhe-relacionados').replaceChildren(
+        ...(relacionados.length
+            ? relacionados.map((outro) =>
+                el(
+                    'li',
+                    {},
+                    el('a', {
+                        href: '#detalhes',
+                        dados: { acao: 'detalhes', id: outro.id },
+                        texto: outro.titulo,
+                    })
+                )
+            )
+            : [el('li', { texto: 'Nenhum registro relacionado.' })])
+    );
+
+    $('btn-detalhe-editar').dataset.id = id;
+    $('btn-detalhe-excluir').dataset.id = id;
+
+    $('detalhes-vazio').hidden = true;
+    $('detalhes-conteudo').hidden = false;
+    renderizarListagem();
+
+    if (rolar) {
+        $('detalhes').scrollIntoView({ behavior: 'smooth' });
+        $('detalhe-titulo').focus({ preventScroll: true });
+    }
+}
+
+function ocultarDetalhes() {
+    estado.idSelecionado = null;
+    $('detalhes-conteudo').hidden = true;
+    $('detalhes-vazio').hidden = false;
+}
+
+function preencherFormulario(reg) {
+    $('titulo').value = reg.titulo;
+    $('descricao').value = reg.descricao;
+    $('categoria').value = reg.categoria;
+    $('tipo-data').value = reg.tipoData;
+    $('data-inicio').value = reg.dataInicio;
+    $('data-fim').value = reg.dataFim;
+    $('ano').value = reg.ano;
+    $('local').value = reg.local;
+    $('latitude').value = temCoordenadas(reg) ? reg.latitude : '';
+    $('longitude').value = temCoordenadas(reg) ? reg.longitude : '';
+    $('pessoas').value = reg.pessoas.join(', ');
+    $('fonte').value = reg.fonte;
+    $('link-fonte').value = reg.linkFonte;
+    $('referencias').value = reg.referencias.join('\n');
+
+    if (reg.imagem) {
+        const enviada = reg.imagem.url.startsWith('data:');
+        estado.imagemUpload = enviada ? reg.imagem.url : '';
+        $('url-imagem').value = enviada ? '' : reg.imagem.url;
+        $('autor-imagem').value = reg.imagem.autor;
+        $('licenca-imagem').value = reg.imagem.licenca;
+        estado.imagemPagina = reg.imagem.paginaOrigem || '';
+    }
+    atualizarCamposData();
+}
+
+function iniciarEdicao(id) {
+    const reg = estado.registros.find((r) => r.id === id);
+    if (!reg) {
+        mostrarMensagem('erro', 'Registro não encontrado.');
+        return;
+    }
+    $('form-registro').reset();
+    estado.idEmEdicao = id;
+    preencherFormulario(reg);
+
+    $('titulo-cadastro').textContent = 'Editar registro histórico';
+    $('btn-salvar').textContent = 'Salvar alterações';
+    $('texto-aviso-edicao').textContent = `Você está editando: "${reg.titulo}".`;
+    $('aviso-edicao').hidden = false;
+
+    $('cadastro').scrollIntoView({ behavior: 'smooth' });
+    $('titulo').focus({ preventScroll: true });
+}
+
+function sairModoEdicao() {
+    estado.idEmEdicao = null;
+    $('aviso-edicao').hidden = true;
+    $('titulo-cadastro').textContent = 'Cadastrar registro histórico';
+    $('btn-salvar').textContent = 'Salvar registro';
+}
+
+function pedirConfirmacaoExclusao(id) {
+    const reg = estado.registros.find((r) => r.id === id);
+    if (!reg) return;
+    estado.idParaExcluir = id;
+    $('dialogo-texto').textContent =
+        `O registro "${reg.titulo}" será removido permanentemente, junto com seus comentários. Esta ação não poderá ser desfeita.`;
+    $('dialogo-exclusao').showModal();
+}
+
+function confirmarExclusao() {
+    const id = estado.idParaExcluir;
+    $('dialogo-exclusao').close();
+    const reg = estado.registros.find((r) => r.id === id);
+    if (!reg) return;
+
+    if (!aplicarAlteracao(estado.registros.filter((r) => r.id !== id))) return;
+
+    if (estado.idSelecionado === id) ocultarDetalhes();
+    if (estado.idEmEdicao === id) $('form-registro').reset();
+
+    atualizarTudo();
+    mostrarMensagem('sucesso', `Registro "${reg.titulo}" excluído.`);
+}
+
+function registrarEventosExclusao() {
+    $('btn-confirmar-exclusao').addEventListener('click', confirmarExclusao);
+    $('btn-cancelar-exclusao').addEventListener('click', () => $('dialogo-exclusao').close());
+    $('dialogo-exclusao').addEventListener('close', () => {
+        estado.idParaExcluir = null;
+    });
+}
+
+//=============pesquisa e filtros=============
+
+function lerCriterios() {
+    const numeroOuNulo = (id) => ($(id).value === '' ? null : Number($(id).value));
+    return {
+        busca: $('pesquisa').value.trim(),
+        categoria: $('filtro-categoria').value,
+        anoInicial: numeroOuNulo('filtro-ano-inicial'),
+        anoFinal: numeroOuNulo('filtro-ano-final'),
+        pessoa: $('filtro-pessoa').value.trim(),
+        ordenarPor: $('ordenar-por').value,
+        ordem: $('ordem').value,
+    };
+}
+
+function pesquisarRegistros(lista, termo) {
+    const busca = normalizar(termo);
+    if (!busca) return lista;
+    return lista.filter((reg) => {
+        const texto = [reg.titulo, reg.descricao, reg.local, reg.fonte, reg.pessoas.join(' ')].join(' ');
+        return normalizar(texto).includes(busca);
+    });
+}
+
+function obterRegistrosVisiveis() {
+    const criterios = lerCriterios();
+    let lista = pesquisarRegistros(estado.registros, criterios.busca);
+    lista = filtrarRegistros(lista, criterios);
+    return ordenarRegistros(lista, criterios.ordenarPor, criterios.ordem);
+}
+
+function aoMudarCriterios() {
+    estado.paginaAtual = 1;
+    renderizarListagem();
+}
+
+function registrarEventosConsulta() {
+    const formulario = $('form-filtros');
+    formulario.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        aoMudarCriterios();
+    });
+    formulario.addEventListener('input', aoMudarCriterios);
+    formulario.addEventListener('reset', () => setTimeout(aoMudarCriterios, 0));
+    $('btn-pesquisar').addEventListener('click', aoMudarCriterios);
+    $('btn-limpar-busca').addEventListener('click', () => formulario.reset());
+    $('btn-aplicar-filtros').addEventListener('click', aoMudarCriterios);
+}
+
+//=========FILTRO==========
+
+function filtrarRegistros(lista, criterios) {
+    const pessoaBuscada = normalizar(criterios.pessoa);
+    return lista.filter((reg) => {
+        if (criterios.categoria && reg.categoria !== criterios.categoria) return false;
+
+        if (pessoaBuscada && !reg.pessoas.some((p) => normalizar(p).includes(pessoaBuscada))) {
+            return false;
+        }
+
+        if (criterios.anoInicial !== null || criterios.anoFinal !== null) {
+            const { inicio, fim } = intervaloAnos(reg);
+            if (inicio === null) return false;
+            if (criterios.anoInicial !== null && fim < criterios.anoInicial) return false;
+            if (criterios.anoFinal !== null && inicio > criterios.anoFinal) return false;
+        }
+        return true;
+    });
+}
+
+//============ordenação=============
+
+function ordenarRegistros(lista, ordenarPor, ordem) {
+    const fator = ordem === 'desc' ? -1 : 1;
+    return [...lista].sort((a, b) => {
+        const comparacao =
+            ordenarPor === 'data'
+                ? chaveData(a).localeCompare(chaveData(b))
+                : a.titulo.localeCompare(b.titulo, 'pt-BR', { sensitivity: 'base' });
+        return comparacao * fator;
+    });
 }
