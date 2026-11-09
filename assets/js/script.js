@@ -290,3 +290,194 @@ function mostrarMensagem(tipo, texto, duracao = 5000) {
     $('mensagens').append(alerta);
     if (duracao > 0) setTimeout(() => alerta.remove(), duracao);
 }
+
+function criarEtiqueta(categoria) {
+    return el('span', {
+        classe: 'etiqueta',
+        dados: { categoria },
+        texto: CATEGORIAS[categoria] || categoria,
+    });
+}
+
+function criarBotoesAcoes(reg) {
+    return el(
+        'div',
+        { classe: 'acoes' },
+        el('button', {
+            type: 'button',
+            classe: 'botao--primario botao--pequeno',
+            dados: { acao: 'detalhes', id: reg.id },
+            'aria-label': `Ver detalhes de ${reg.titulo}`,
+            texto: 'Ver detalhes',
+        }),
+        el('button', {
+            type: 'button',
+            classe: 'botao--pequeno',
+            dados: { acao: 'editar', id: reg.id },
+            'aria-label': `Editar ${reg.titulo}`,
+            texto: 'Editar',
+        }),
+        el('button', {
+            type: 'button',
+            classe: 'botao--perigo botao--pequeno',
+            dados: { acao: 'excluir', id: reg.id },
+            'aria-label': `Excluir ${reg.titulo}`,
+            texto: 'Excluir',
+        })
+    );
+}
+
+function criarLinhaTabela(reg) {
+    return el(
+        'tr',
+        { classe: reg.id === estado.idSelecionado ? 'selecionado' : null },
+        el('th', { scope: 'row', texto: reg.titulo }),
+        el('td', { 'data-label': 'Categoria' }, criarEtiqueta(reg.categoria)),
+        el(
+            'td',
+            { 'data-label': 'Data / período' },
+            el('time', { datetime: chaveData(reg), texto: formatarPeriodo(reg) })
+        ),
+        el('td', { 'data-label': 'Local', texto: reg.local || '—' }),
+        el('td', { 'data-label': 'Pessoas relacionadas', texto: reg.pessoas.join(', ') || '—' }),
+        el('td', { 'data-label': 'Fonte', texto: reg.fonte }),
+        el('td', { 'data-label': 'Ações' }, criarBotoesAcoes(reg))
+    );
+}
+
+function criarCartao(reg) {
+    const imagem = reg.imagem
+        ? el(
+            'figure',
+            {},
+            el('img', {
+                src: reg.imagem.url,
+                alt: `Imagem do registro: ${reg.titulo}`,
+                loading: 'lazy',
+            }),
+            el('figcaption', {
+                texto: `Autor: ${reg.imagem.autor} · Licença: ${LICENCAS[reg.imagem.licenca] || reg.imagem.licenca}`,
+            })
+        )
+        : el('div', { classe: 'cartao__sem-imagem', 'aria-hidden': 'true', texto: 'Sem imagem' });
+
+    return el(
+        'article',
+        { classe: 'cartao' },
+        imagem,
+        el(
+            'div',
+            { classe: 'cartao__corpo' },
+            el('h4', { texto: reg.titulo }),
+            el('p', {}, criarEtiqueta(reg.categoria)),
+            el(
+                'p',
+                {},
+                el('strong', { texto: 'Data: ' }),
+                el('time', { datetime: chaveData(reg), texto: formatarPeriodo(reg) })
+            ),
+            el('p', { texto: resumir(reg.descricao.replace(/\s+/g, ' '), 140) }),
+            criarBotoesAcoes(reg)
+        )
+    );
+}
+
+function renderizarCartoesRecentes() {
+    const recentes = [...estado.registros]
+        .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+        .slice(0, 3);
+    $('secao-recentes').hidden = recentes.length === 0;
+    $('lista-cartoes').replaceChildren(...recentes.map(criarCartao));
+}
+
+function renderizarPaginacao(totalPaginas) {
+    $('paginacao').hidden = totalPaginas <= 1;
+
+    const criarItem = (rotulo, pagina, atual = false) =>
+        el(
+            'li',
+            {},
+            el('a', {
+                href: '#consulta',
+                dados: { acao: 'pagina', pagina },
+                'aria-current': atual ? 'page' : null,
+                'aria-label': atual ? `Página ${pagina} (atual)` : `Ir para ${rotulo === String(pagina) ? `a página ${pagina}` : rotulo.toLowerCase()}`,
+                texto: rotulo,
+            })
+        );
+
+    const itens = [];
+    if (estado.paginaAtual > 1) itens.push(criarItem('Anterior', estado.paginaAtual - 1));
+    for (let p = 1; p <= totalPaginas; p++) {
+        itens.push(criarItem(String(p), p, p === estado.paginaAtual));
+    }
+    if (estado.paginaAtual < totalPaginas) itens.push(criarItem('Próxima', estado.paginaAtual + 1));
+    $('paginacao-lista').replaceChildren(...itens);
+}
+
+function renderizarListagem() {
+    const visiveis = [...estado.registros];
+    const total = estado.registros.length;
+
+    const totalPaginas = Math.max(1, Math.ceil(visiveis.length / ITENS_POR_PAGINA));
+    if (estado.paginaAtual > totalPaginas) estado.paginaAtual = totalPaginas;
+
+    const inicio = (estado.paginaAtual - 1) * ITENS_POR_PAGINA;
+    const pagina = visiveis.slice(inicio, inicio + ITENS_POR_PAGINA);
+
+    $('lista-corpo').replaceChildren(...pagina.map(criarLinhaTabela));
+
+    const vazio = visiveis.length === 0;
+    $('tabela-wrapper').hidden = vazio;
+    $('estado-vazio').hidden = !vazio;
+    $('contador-resultados').hidden = vazio;
+    if (vazio) {
+        const semCadastro = total === 0;
+        $('vazio-titulo').textContent = semCadastro
+            ? 'Nenhum registro cadastrado'
+            : 'Nenhum registro encontrado';
+        $('vazio-texto').textContent = semCadastro
+            ? 'Use o formulário acima para cadastrar o primeiro registro histórico.'
+            : 'Tente alterar a pesquisa ou limpar os filtros aplicados.';
+        $('btn-limpar-busca').hidden = semCadastro;
+    } else {
+        $('contador-resultados').textContent =
+            `Mostrando ${pagina.length} de ${visiveis.length} resultado(s)` +
+            (visiveis.length !== total ? ` (${total} registro(s) cadastrado(s) no total)` : '') +
+            ` — página ${estado.paginaAtual} de ${totalPaginas}.`;
+    }
+
+    renderizarPaginacao(totalPaginas);
+    renderizarCartoesRecentes();
+}
+
+function aoClicarAcao(evento) {
+    const alvo = evento.target.closest('[data-acao]');
+    if (!alvo) return;
+    const { acao, pagina } = alvo.dataset;
+    if (alvo.tagName === 'A') evento.preventDefault();
+
+    switch (acao) {
+        case 'pagina':
+            estado.paginaAtual = Number(pagina);
+            renderizarListagem();
+            $('titulo-tabela').scrollIntoView({ behavior: 'smooth' });
+            break;
+    }
+}
+
+function registrarEventosListagem() {
+    document.addEventListener('click', aoClicarAcao);
+}
+
+function atualizarTudo() {
+    renderizarListagem();
+}
+
+function iniciar() {
+    estado.registros = [...REGISTROS_EXEMPLO];
+    registrarEventosListagem();
+    atualizarTudo();
+}
+
+iniciar();
