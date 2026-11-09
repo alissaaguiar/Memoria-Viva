@@ -11,6 +11,14 @@
 
 <body>
 
+    <a class="pular-link" href="#cadastro">Pular para o conteúdo</a>
+
+    <noscript>
+        <p style="padding:1rem;background:#fffdf9;color:#2b2218;">
+            O Memória Viva precisa de JavaScript para funcionar. Ative-o no seu navegador.
+        </p>
+    </noscript>
+
     <!-- ===================== IDENTIFICAÇÃO E NAVEGAÇÃO ===================== -->
     <header class="topo">
         <div class="topo__marca">
@@ -20,9 +28,9 @@
 
         <nav class="menu" aria-label="Navegação principal">
             <ul>
-                <li><a href="#cadastro">Cadastrar registro</a></li>
-                <li><a href="#consulta">Consultar registros</a></li>
-                <li><a href="#detalhes">Detalhes do registro</a></li>
+                <li><a href="#cadastro">Cadastrar</a></li>
+                <li><a href="#consulta">Consultar</a></li>
+                <li><a href="#detalhes">Detalhes/a></li>
                 <li><a href="#linha-do-tempo">Linha do tempo</a></li>
                 <li><a href="#mapa">Mapa</a></li>
                 <li><a href="#forum">Fórum</a></li>
@@ -38,17 +46,21 @@
             <h2 id="titulo-aviso">Aviso sobre fontes</h2>
             <p>
                 A história lida com temas sensíveis. Por isso, <strong>todo registro deve
-                informar a fonte das informações</strong> e a fonte (e a licença) de qualquer
+                    informar a fonte das informações</strong> e a fonte (e a licença) de qualquer
                 imagem ou mídia utilizada.
             </p>
-            <p><small>Os registros exibidos nesta página são <em>fictícios</em> e servem apenas para demonstrar a interface.</small></p>
         </section>
 
-    <!-- ===================== CADASTRO ===================== -->
-        <section id="cadastro" aria-labelledby="titulo-cadastro">
+        <!-- ===================== CADASTRO ===================== -->
+        <section id="cadastro" class="painel" aria-labelledby="titulo-cadastro">
             <h2 id="titulo-cadastro">Cadastrar registro histórico</h2>
 
-            <form action="#" method="post">
+            <div id="aviso-edicao" class="alerta alerta--info" role="status" hidden>
+                <p id="texto-aviso-edicao"></p>
+                <button type="button" id="btn-cancelar-edicao" class="botao--pequeno">Cancelar edição</button>
+            </div>
+
+            <form id="form-registro" action="#" method="post" novalidate autocomplete="off">
 
                 <fieldset class="campos">
                     <legend>Informações principais</legend>
@@ -62,7 +74,7 @@
                     <div class="campo campo--largo">
                         <label for="descricao">Descrição *</label><br>
                         <textarea id="descricao" name="descricao" rows="6" cols="60" required
-                                placeholder="Descreva o fato, o contexto e a sua importância histórica."></textarea>
+                            placeholder="Descreva o fato, o contexto e a sua importância histórica."></textarea>
                     </div>
 
                     <div class="campo">
@@ -94,17 +106,17 @@
                     </div>
 
                     <div class="campo">
-                        <label for="data-inicio">Data de início</label><br>
+                        <label for="data-inicio">Data *</label><br>
                         <input type="date" id="data-inicio" name="data-inicio">
                     </div>
 
                     <div class="campo">
-                        <label for="data-fim">Data de fim (se for um período)</label><br>
+                        <label for="data-fim">Data de fim *</label><br>
                         <input type="date" id="data-fim" name="data-fim">
                     </div>
 
                     <div class="campo">
-                        <label for="ano">Ano (se não houver data completa)</label><br>
+                        <label for="ano">Ano</label><br>
                         <input type="number" id="ano" name="ano" min="1" max="2100" step="1" placeholder="Ex.: 1888">
                     </div>
                 </fieldset>
@@ -114,7 +126,10 @@
 
                     <div class="campo campo--largo">
                         <label for="local">Local</label><br>
-                        <input type="text" id="local" name="local" placeholder="Cidade, estado, país">
+                        <div class="campo-acao">
+                            <input type="text" id="local" name="local" placeholder="Cidade, estado, país">
+                            <button type="button" id="btn-geocodificar">Buscar coordenadas</button>
+                        </div>
                     </div>
 
                     <div class="campo">
@@ -150,7 +165,7 @@
                     <div class="campo campo--largo">
                         <label for="referencias">Referências para documentos</label><br>
                         <textarea id="referencias" name="referencias" rows="4" cols="60"
-                                placeholder="Um documento ou link por linha (atas, fotografias, jornais, certidões...)"></textarea>
+                            placeholder="Um documento ou link por linha (atas, fotografias, jornais, certidões...)"></textarea>
                     </div>
                 </fieldset>
 
@@ -159,47 +174,30 @@
 
                     <div class="campo campo--largo">
                         <label for="busca-imagem">Pesquisar imagem na Wikimedia Commons</label>
-                        <div class="campo-acao">
-                            <input type="search" id="busca-imagem" name="busca-imagem" placeholder="Ex.: estação ferroviária">
-                            <button type="button">Pesquisar imagem</button>
-                        </div>
+                        <input type="search" id="busca-imagem" name="busca-imagem"
+                            placeholder="Ex.: estação ferroviária">
+                        <button type="button" id="btn-buscar-imagem">Pesquisar imagem</button>
+                    </div>
                     </div>
 
                     <section class="campo--largo" aria-labelledby="titulo-resultados-imagem">
                         <h3 id="titulo-resultados-imagem">Resultados da pesquisa de imagens</h3>
-                        <p><small>Os resultados da Wikimedia Commons aparecerão aqui. Selecione uma imagem para associá-la ao registro.</small></p>
-                        <ul class="resultados-imagem">
-                            <li>
-                                <figure>
-                                    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23d9cfbc'/%3E%3C/svg%3E"
-                                        alt="Espaço reservado para o resultado 1 da pesquisa" width="400" height="260">
-                                    <figcaption>Resultado 1 (exemplo)</figcaption>
-                                </figure>
-                                <button type="button">Usar esta imagem</button>
-                            </li>
-                            <li>
-                                <figure>
-                                    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23d9cfbc'/%3E%3C/svg%3E"
-                                        alt="Espaço reservado para o resultado 2 da pesquisa" width="400" height="260">
-                                    <figcaption>Resultado 2 (exemplo)</figcaption>
-                                </figure>
-                                <button type="button">Usar esta imagem</button>
-                            </li>
-                            <li>
-                                <figure>
-                                    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23d9cfbc'/%3E%3C/svg%3E"
-                                        alt="Espaço reservado para o resultado 3 da pesquisa" width="400" height="260">
-                                    <figcaption>Resultado 3 (exemplo)</figcaption>
-                                </figure>
-                                <button type="button">Usar esta imagem</button>
-                            </li>
-                        </ul>
+                        <p id="status-imagens" class="contador" role="status">Pesquise um termo para ver imagens da
+                            Wikimedia Commons. Selecione uma para associá-la ao registro.</p>
+                        <ul id="resultados-imagem" class="resultados-imagem"></ul>
                     </section>
 
                     <div class="campo campo--largo">
                         <label for="url-imagem">Endereço (URL) da imagem selecionada</label>
-                        <input type="url" id="url-imagem" name="url-imagem" placeholder="https://commons.wikimedia.org/...">
+                        <input type="url" id="url-imagem" name="url-imagem"
+                            placeholder="https://commons.wikimedia.org/...">
                     </div>
+
+                    <figure id="previa-imagem" class="previa-imagem campo--largo" hidden>
+                        <img id="previa-img" alt="Pré-visualização da imagem selecionada">
+                        <figcaption id="previa-legenda">Imagem selecionada para este registro.</figcaption>
+                        <button type="button" id="btn-remover-imagem" class="botao--pequeno">Remover imagem</button>
+                    </figure>
 
                     <div class="campo">
                         <label for="autor-imagem">Autor da imagem</label>
@@ -219,17 +217,17 @@
                     </div>
 
                     <div class="campo campo--largo">
-                        <label for="arquivo-imagem">Ou envie uma imagem própria</label>
+                        <label for="arquivo-imagem">Ou envie uma imagem própria (até 300 KB)</label>
                         <input type="file" id="arquivo-imagem" name="arquivo-imagem" accept="image/*">
                     </div>
                 </fieldset>
 
                 <div class="form-acoes">
-                    <button type="submit">Salvar registro</button>
+                    <button type="submit" id="btn-salvar">Salvar registro</button>
                     <button type="reset">Limpar formulário</button>
                 </div>
 
-                <p><small>* Campos obrigatórios</small></p>
+                <p><small>* Campos obrigatórios. Se houver imagem, autor e licença também são obrigatórios.</small></p>
             </form>
         </section>
 
@@ -239,14 +237,18 @@
             <h2 id="titulo-consulta">Consultar registros</h2>
 
             <!-- Pesquisa, filtro e ordenação -->
-            <form  class="filtros" action="#" method="get" role="search" aria-label="Pesquisa, filtros e ordenação de registros">
+            <form id="form-filtros" class="filtros" action="#" method="get" role="search"
+                aria-label="Pesquisa, filtros e ordenação de registros">
 
                 <fieldset>
                     <legend>Pesquisar</legend>
                     <div class="campo">
                         <label for="pesquisa">Buscar por palavra-chave</label><br>
-                        <input type="search" id="pesquisa" name="pesquisa" placeholder="Título, descrição, local...">
-                        <button type="button">Pesquisar</button>
+                        <div class="campo-acao">
+                            <input type="search" id="pesquisa" name="pesquisa"
+                                placeholder="Título, descrição, local...">
+                            <button type="button" id="btn-pesquisar">Pesquisar</button>
+                        </div>
                     </div>
                 </fieldset>
 
@@ -291,11 +293,13 @@
                         <div class="campo campo-par">
                             <div>
                                 <label for="filtro-ano-inicial">Período: de</label>
-                                <input type="number" id="filtro-ano-inicial" name="filtro-ano-inicial" min="1" max="2100" placeholder="Ano inicial">
+                                <input type="number" id="filtro-ano-inicial" name="filtro-ano-inicial" min="1"
+                                    max="2100" placeholder="Ano inicial">
                             </div>
                             <div>
                                 <label for="filtro-ano-final">até</label>
-                                <input type="number" id="filtro-ano-final" name="filtro-ano-final" min="1" max="2100" placeholder="Ano final">
+                                <input type="number" id="filtro-ano-final" name="filtro-ano-final" min="1" max="2100"
+                                    placeholder="Ano final">
                             </div>
                         </div>
 
@@ -306,7 +310,7 @@
                     </div>
 
                     <div class="form-acoes">
-                        <button type="button" class="botao--primario">Aplicar filtros</button>
+                        <button type="button" id="btn-aplicar-filtros" class="botao--primario">Aplicar filtros</button>
                         <button type="reset">Limpar filtros</button>
                     </div>
 
@@ -315,11 +319,18 @@
 
             <!-- Listagem em tabela -->
             <section aria-labelledby="titulo-tabela">
-                <h3 id="titulo-tabela">Lista de registros</h3>
+                <h3 id="titulo-tabela" tabindex="-1">Lista de registros</h3>
+                <p id="contador-resultados" class="contador" role="status"></p>
 
-                <div class="tabela-wrapper">
+                <div id="estado-vazio" class="estado-vazio" hidden>
+                    <h4 id="vazio-titulo">Nenhum registro encontrado</h4>
+                    <p id="vazio-texto">Tente alterar a pesquisa ou limpar os filtros aplicados.</p>
+                    <button type="button" id="btn-limpar-busca" hidden>Limpar pesquisa e filtros</button>
+                </div>
+
+                <div id="tabela-wrapper" class="tabela-wrapper">
                     <table>
-                        <caption>Registros históricos cadastrados (dados fictícios)</caption>
+                        <caption>Registros históricos cadastrados</caption>
                         <thead>
                             <tr>
                                 <th scope="col">Título</th>
@@ -331,156 +342,19 @@
                                 <th scope="col">Ações</th>
                             </tr>
                         </thead>
-
-                        <tbody>
-                            <tr>
-                                <th scope="row">Inauguração da Estação Ferroviária de Vila Nova</th>
-                                <td data-label="Categoria"><span class="etiqueta" data-categoria="arquitetura">Arquitetura e patrimônio</span></td>
-                                <td data-label="Data / período"><time datetime="1888-05-14">14/05/1888</time></td>
-                                <td data-label="Local">Vila Nova, MG</td>
-                                <td data-label="Pessoas relacionadas">Joaquim Almeida</td>
-                                <td data-label="Fonte">Arquivo Municipal (fictício)</td>
-                                <td data-label="Ações">
-
-                                    <div class="acoes">
-                                        <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                        <button type="button" class="botao--pequeno">Editar</button>
-                                        <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Primeira Feira de Cultura Popular</th>
-                                <td data-label="Categoria"><span class="etiqueta" data-categoria="cultura">Cultura</span></td>
-                                <td data-label="Data / período"><time datetime="1952-07-20">20/07/1952</time></td>
-                                <td data-label="Local">Vila Nova, MG</td>
-                                <td data-label="Pessoas relacionadas">Maria das Dores, Antônio Ferreira</td>
-                                <td data-label="Fonte">Jornal Voz da Cidade (fictício)</td>
-                                <td data-label="Ações">
-
-                                    <div class="acoes">
-                                        <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                        <button type="button" class="botao--pequeno">Editar</button>
-                                        <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Ciclo do café na região</th>
-                                <td data-label="Categoria"><span class="etiqueta" data-categoria="economia">Economia</span></td>
-                                <td data-label="Data / período"><time datetime="1870">1870</time> a <time datetime="1930">1930</time></td>
-                                <td data-label="Local">Sul de Minas, MG</td>
-                                <td data-label="Pessoas relacionadas">Coronel Benedito Rocha</td>
-                                <td data-label="Fonte">Livro "Terra e Café" (fictício)</td>
-                                <td data-label="Ações">
-
-                                    <div class="acoes">
-                                        <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                        <button type="button" class="botao--pequeno">Editar</button>
-                                        <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Criação do primeiro grupo escolar</th>
-                                <td data-label="Categoria"><span class="etiqueta" data-categoria="sociedade">Sociedade</span></td>
-                                <td data-label="Data / período"><time datetime="1911">1911</time></td>
-                                <td data-label="Local">Vila Nova, MG</td>
-                                <td data-label="Pessoas relacionadas">Profa. Helena Duarte</td>
-                                <td data-label="Fonte">Acervo da Escola Estadual (fictício)</td>
-                                <td data-label="Ações">
-
-                                    <div class="acoes">
-                                        <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                        <button type="button" class="botao--pequeno">Editar</button>
-                                        <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
+                        <tbody id="lista-corpo"></tbody>
                     </table>
                 </div>
 
-                <nav class="paginacao" aria-label="Paginação da lista">
-                    <ul>
-                        <li><a href="#consulta">Anterior</a></li>
-                        <li><a href="#consulta" aria-current="page">1</a></li>
-                        <li><a href="#consulta">2</a></li>
-                        <li><a href="#consulta">Próxima</a></li>
-                    </ul>
+                <nav id="paginacao" class="paginacao" aria-label="Paginação da lista" hidden>
+                    <ul id="paginacao-lista"></ul>
                 </nav>
             </section>
 
-            <!-- Listagem em cartões -->
-            <section aria-labelledby="titulo-cartoes">
-                <h3 id="titulo-cartoes">Registros em destaque</h3>
-
-                <div class="cartoes">
-                    <article class="cartao">
-                        <figure>
-                            <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23a99b84'/%3E%3C/svg%3E"
-                                alt="Imagem ilustrativa da estação ferroviária (espaço reservado)" width="400" height="260">
-                            <figcaption>Imagem de exemplo. Fonte: Wikimedia Commons (fictício).</figcaption>
-                        </figure>
-
-                        <div class="cartao__corpo">
-                            <h4>Inauguração da Estação Ferroviária de Vila Nova</h4>
-                            
-                            <p><span class="etiqueta" data-categoria="arquitetura">Arquitetura e patrimônio</span></p>
-                            <p><strong>Data:</strong> <time datetime="1888-05-14">14/05/1888</time></p>
-                            <p>Registro da cerimônia de inauguração da estação, que ligou a vila à capital da província.</p>
-                            
-                            <div class="acoes">
-                                <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                <button type="button" class="botao--pequeno">Editar</button>
-                                <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                            </div>
-                        </div>
-                    </article>
-
-                    <article class="cartao">
-                        <figure>
-                            <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23957158'/%3E%3C/svg%3E"
-                                alt="Imagem ilustrativa da feira de cultura popular (espaço reservado)" width="400" height="260">
-                            <figcaption>Imagem de exemplo. Fonte: acervo local (fictício).</figcaption>
-                        </figure>
-
-                        <div class="cartao__corpo">
-                            <h4>Primeira Feira de Cultura Popular</h4>
-                            <p><span class="etiqueta" data-categoria="cultura">Cultura</span></p>
-                            <p><strong>Data:</strong> <time datetime="1952-07-20">20/07/1952</time></p>
-                            <p>Evento que reuniu artesãos, músicos e contadores de histórias da região.</p>
-                            
-                            <div class="acoes">
-                                <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                <button type="button" class="botao--pequeno">Editar</button>
-                                <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                            </div>
-                        </div>
-                    </article>
-
-                    <article class="cartao">
-                        <figure>
-                            <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%235b5b4d'/%3E%3C/svg%3E"
-                                alt="Imagem ilustrativa do ciclo do café (espaço reservado)" width="400" height="260">
-                            <figcaption>Imagem de exemplo. Fonte: acervo local (fictício).</figcaption>
-                        </figure>
-                        
-                        <div class="cartao__corpo">
-                            <h4>Ciclo do café na região</h4>
-                            <p><span class="etiqueta" data-categoria="economia">Economia</span></p>
-                            <p><strong>Período:</strong> <time datetime="1870">1870</time> a <time datetime="1930">1930</time></p>
-                            <p>Período de expansão das fazendas e das ferrovias no Sul de Minas.</p>
-                            
-                            <div class="acoes">
-                                <button type="button" class="botao--primario botao--pequeno">Ver detalhes</button>
-                                <button type="button" class="botao--pequeno">Editar</button>
-                                <button type="button" class="botao--perigo botao--pequeno">Excluir</button>
-                            </div>
-
-                        </div>
-                    </article>
-                </div>
+            <!-- Últimos registros cadastrados (cartões) -->
+            <section id="secao-recentes" aria-labelledby="titulo-cartoes">
+                <h3 id="titulo-cartoes">Cadastrados recentemente</h3>
+                <div id="lista-cartoes" class="cartoes"></div>
             </section>
         </section>
 
@@ -488,195 +362,94 @@
         <section id="detalhes" class="painel" aria-labelledby="titulo-detalhes">
             <h2 id="titulo-detalhes">Detalhes do registro</h2>
 
-            <div class="detalhes-layout">
-                <article class="registro-detalhe">
-                    <header>
-                        <h3>Inauguração da Estação Ferroviária de Vila Nova</h3>
-                        <p><span class="etiqueta" data-categoria="arquitetura">Arquitetura e patrimônio</span></p>
-                    </header>
-
-                    <figure>
-                        <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23a99b84'/%3E%3C/svg%3E"
-                            alt="Imagem ilustrativa da estação ferroviária (espaço reservado)" width="400" height="260">
-                        <figcaption>
-                            Autor: Desconhecido (fictício) · Licença: Domínio público ·
-                            <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
-                        </figcaption>
-                    </figure>
-
-                    <section aria-labelledby="titulo-descricao">
-                        <h4 id="titulo-descricao">Descrição</h4>
-                        <p>
-                        A estação foi inaugurada com a presença de autoridades locais e de moradores,
-                        marcando a chegada da ferrovia e a transformação econômica da região.
-                        </p>
-                        <p>
-                        Este texto é fictício e serve apenas para demonstrar como a descrição completa
-                        de um registro será exibida.
-                        </p>
-                    </section>
-
-                    <section aria-labelledby="titulo-ficha">
-                        <h4 id="titulo-ficha">Ficha técnica</h4>
-                        <dl class="ficha">
-                            <dt>Data</dt>
-                            <dd><time datetime="1888-05-14">14/05/1888</time></dd>
-
-                            <dt>Local</dt>
-                            <dd>Vila Nova, Minas Gerais, Brasil</dd>
-
-                            <dt>Pessoas relacionadas</dt>
-                            <dd>
-                                <ul>
-                                    <li>Joaquim Almeida (engenheiro responsável)</li>
-                                    <li>Barão de Santa Rita (autoridade presente)</li>
-                                </ul>
-                            </dd>
-
-                            <dt>Fonte das informações</dt>
-                            <dd>Arquivo Municipal de Vila Nova (fictício)</dd>
-                        </dl>
-                    </section>
-
-                    <section aria-labelledby="titulo-referencias">
-                        <h4 id="titulo-referencias">Referências e documentos</h4>
-                        <ol>
-                            <li><a href="#detalhes">Ata da cerimônia de inauguração (1888)</a></li>
-                            <li><a href="#detalhes">Fotografia da fachada da estação (1890)</a></li>
-                            <li><a href="#detalhes">Reportagem do jornal Voz da Cidade (1888)</a></li>
-                        </ol>
-                    </section>
-
-                    <footer>
-                        <div class="acoes">
-                            <button type="button">Editar registro</button>
-                            <button type="button" class="botao--perigo">Excluir registro</button>
-                            <a class="botao" href="#consulta">Voltar para a lista</a>
-                        </div>
-                    </footer>
-                </article>
-
-                <aside class="registro-lateral" aria-labelledby="titulo-relacionados">
-                    <h3 id="titulo-relacionados">Registros relacionados</h3>
-                    
-                    <ul>
-                        <li><a href="#detalhes">Ciclo do café na região</a></li>
-                        <li><a href="#detalhes">Criação do primeiro grupo escolar</a></li>
-                    </ul>
-
-                </aside>
+            <div id="detalhes-vazio" class="estado-vazio">
+                <h4>Nenhum registro selecionado</h4>
+                <p>Clique em “Ver detalhes” na lista de registros para exibir as informações completas aqui.</p>
             </div>
 
-            <!-- Comentários -->
-            <section aria-labelledby="titulo-comentarios">
-                <h3 id="titulo-comentarios">Comentários</h3>
+            <div id="detalhes-conteudo" hidden>
+                <div class="detalhes-layout">
+                    <article class="registro-detalhe" aria-labelledby="detalhe-titulo">
+                        <header>
+                            <h3 id="detalhe-titulo" tabindex="-1"></h3>
+                            <p><span id="detalhe-categoria" class="etiqueta"></span></p>
+                        </header>
 
-                <article class="comentario">
-                    <header>
-                        <p><strong>Ana Paula</strong> · <time datetime="2026-10-10">10/10/2026</time></p>
-                    </header>
-                    <p>Meu bisavô trabalhou na construção da estação. Posso enviar uma foto de família?</p>
-                </article>
+                        <figure id="detalhe-figura" hidden>
+                            <img id="detalhe-imagem" alt="">
+                            <figcaption id="detalhe-legenda"></figcaption>
+                        </figure>
 
-                <article class="comentario">
-                    <header>
-                        <p><strong>Carlos Eduardo</strong> · <time datetime="2026-10-12">12/10/2026</time></p>
-                    </header>
-                    <p>Seria interessante incluir a planta original da estação nas referências.</p>
-                </article>
+                        <section aria-labelledby="titulo-descricao">
+                            <h4 id="titulo-descricao">Descrição</h4>
+                            <div id="detalhe-descricao"></div>
+                        </section>
 
-                <form action="#" method="post">
-                    <fieldset class="campos">
-                        <legend>Deixar um comentário</legend>
-                        <div class="campo campo--largo">
-                            <label for="comentario-nome">Nome</label>
-                            <input type="text" id="comentario-nome" name="comentario-nome" required>
-                        </div>
+                        <section aria-labelledby="titulo-ficha">
+                            <h4 id="titulo-ficha">Ficha técnica</h4>
+                            <dl class="ficha">
+                                <dt>Data</dt>
+                                <dd id="detalhe-data"></dd>
 
-                        <div class="campo campo--largo">
-                            <label for="comentario-texto">Comentário</label>
-                            <textarea id="comentario-texto" name="comentario-texto" rows="4" required></textarea>
-                        </div>
+                                <dt>Local</dt>
+                                <dd id="detalhe-local"></dd>
 
-                        <div class="campo--largo">
-                            <button type="submit">Enviar comentário</button>
-                        </div>
-                    </fieldset>
-                </form>
-            </section>
-        </section>
+                                <dt>Pessoas relacionadas</dt>
+                                <dd id="detalhe-pessoas"></dd>
 
-        <!-- ===================== MENSAGENS E ESTADOS ===================== -->
-        <section id="estados" class="painel" aria-labelledby="titulo-estados">
-            <h2 id="titulo-estados">Mensagens e estados da interface</h2>
-            <p>Exemplos visuais das mensagens que o sistema exibirá após as ações do usuário.</p>
+                                <dt>Fonte das informações</dt>
+                                <dd id="detalhe-fonte"></dd>
 
-            <div class="estados-grid">
+                                <dt>Cadastrado em</dt>
+                                <dd id="detalhe-cadastro"></dd>
+                            </dl>
+                        </section>
 
-                <section aria-labelledby="titulo-alertas">
-                    <h3 id="titulo-alertas">Alertas</h3>
+                        <section aria-labelledby="titulo-referencias">
+                            <h4 id="titulo-referencias">Referências e documentos</h4>
+                            <ol id="detalhe-referencias"></ol>
+                            <p id="detalhe-sem-referencias">Nenhuma referência cadastrada.</p>
+                        </section>
 
-                    <div class="alerta alerta--sucesso" role="status">
-                        <p>Registro salvo com sucesso!</p>
-                        <button type="button" class="botao--pequeno" aria-label="Fechar mensagem de sucesso">Fechar</button>
-                    </div>
+                        <footer>
+                            <div class="acoes">
+                                <button type="button" id="btn-detalhe-editar" data-acao="editar">Editar
+                                    registro</button>
+                                <button type="button" id="btn-detalhe-excluir" data-acao="excluir"
+                                    class="botao--perigo">Excluir registro</button>
+                                <a class="botao" href="#consulta">Voltar para a lista</a>
+                            </div>
+                        </footer>
+                    </article>
 
-                    <div class="alerta alerta--erro" role="alert">
-                        <p>Não foi possível salvar. Preencha os campos obrigatórios.</p>
-                    </div>
+                    <aside class="registro-lateral" aria-labelledby="titulo-relacionados">
+                        <h3 id="titulo-relacionados">Registros relacionados</h3>
+                        <ul id="detalhe-relacionados"></ul>
+                    </aside>
+                </div>
 
-                    <div class="alerta alerta--aviso" role="status">
-                        <p>Este registro ainda não possui imagem associada.</p>
-                    </div>
+                <!-- Comentários -->
+                <section aria-labelledby="titulo-comentarios">
+                    <h3 id="titulo-comentarios">Comentários</h3>
 
-                    <div class="alerta alerta--info" role="status">
-                        <p>Dica: informe sempre a fonte das informações.</p>
-                    </div>
-                </section>
+                    <div id="lista-comentarios"></div>
 
-                <section aria-labelledby="titulo-campos-estado">
-                    <h3 id="titulo-campos-estado">Estados dos campos</h3>
-
-                    <div class="campo">
-                        <label for="exemplo-invalido">Título (inválido)</label>
-                        <input type="text" id="exemplo-invalido" aria-invalid="true" aria-describedby="erro-titulo" value="">
-                        <p class="mensagem-campo mensagem-campo--erro" id="erro-titulo">O título é obrigatório.</p>
-                    </div>
-
-                    <div class="campo campo--valido">
-                        <label for="exemplo-valido">Fonte (válido)</label>
-                        <input type="text" id="exemplo-valido" value="Arquivo Municipal" aria-describedby="ok-fonte">
-                        <p class="mensagem-campo mensagem-campo--sucesso" id="ok-fonte">Fonte informada.</p>
-                    </div>
-
-                    <div class="campo">
-                        <label for="exemplo-desabilitado">Campo desabilitado</label>
-                        <input type="text" id="exemplo-desabilitado" value="Gerado automaticamente" disabled>
-                    </div>
-        
-                    <div class="form-acoes">
-                        <button type="button" class="botao--primario" disabled>Salvar (desabilitado)</button>
-                    </div>
-                </section>
-
-                <section aria-labelledby="titulo-vazio">
-                    <h3 id="titulo-vazio">Nenhum resultado</h3>
-                    <div class="estado-vazio">
-                        <h4>Nenhum registro encontrado</h4>
-                        <p>Tente alterar a pesquisa ou limpar os filtros aplicados.</p>
-                    </div>
-                </section>
-
-                <section aria-labelledby="titulo-confirmacao">
-                    <h3 id="titulo-confirmacao">Confirmação de exclusão</h3>
-                    <div class="confirmacao" role="group" aria-labelledby="titulo-confirmar-exclusao">
-                        <h4 id="titulo-confirmar-exclusao">Excluir este registro?</h4>
-                        <p>Esta ação não poderá ser desfeita.</p>
-                        <div class="acoes">
-                            <button type="button" class="botao--perigo">Sim, excluir</button>
-                            <button type="button">Cancelar</button>
-                        </div>
-                    </div>
+                    <form id="form-comentario" action="#" method="post" novalidate>
+                        <fieldset class="campos">
+                            <legend>Deixar um comentário</legend>
+                            <div class="campo campo--largo">
+                                <label for="comentario-nome">Nome</label>
+                                <input type="text" id="comentario-nome" name="comentario-nome" autocomplete="name">
+                            </div>
+                            <div class="campo campo--largo">
+                                <label for="comentario-texto">Comentário</label>
+                                <textarea id="comentario-texto" name="comentario-texto" rows="4"></textarea>
+                            </div>
+                            <div class="campo--largo">
+                                <button type="submit">Enviar comentário</button>
+                            </div>
+                        </fieldset>
+                    </form>
                 </section>
             </div>
         </section>
@@ -687,27 +460,27 @@
             <section id="linha-do-tempo" class="painel" aria-labelledby="titulo-linha">
                 <h2 id="titulo-linha">Linha do tempo</h2>
 
-                <ol class="linha-tempo">
-                    <li><time datetime="1870">1870</time> – Início do ciclo do café na região</li>
-                    <li><time datetime="1888-05-14">1888</time> – Inauguração da Estação Ferroviária de Vila Nova</li>
-                    <li><time datetime="1911">1911</time> – Criação do primeiro grupo escolar</li>
-                    <li><time datetime="1952-07-20">1952</time> – Primeira Feira de Cultura Popular</li>
-                </ol>
+                <ol id="linha-tempo-lista" class="linha-tempo"></ol>
             </section>
 
             <section id="mapa" class="painel" aria-labelledby="titulo-mapa">
                 <h2 id="titulo-mapa">Mapa dos registros</h2>
-                <p>
-                Nesta área será exibido um mapa com a localização dos registros que possuem
-                latitude e longitude cadastradas.
-                </p>
+                <div class="campo">
+                    <label for="mapa-registro">Registro com coordenadas</label>
+                    <select id="mapa-registro">
+                        <option value="">Selecione um registro...</option>
+                    </select>
+                </div>
 
                 <figure class="mapa">
-                    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260'%3E%3Crect width='100%25' height='100%25' fill='%23ebe3d4'/%3E%3C/svg%3E"
-                        alt="Espaço reservado para o mapa dos registros" width="400" height="260">
-                    <figcaption>Mapa interativo previsto para uma etapa futura.</figcaption>
+                    <div id="mapa-quadro"></div>
+                    <figcaption>
+                        Mapa © <a href="https://www.openstreetmap.org/copyright" target="_blank"
+                            rel="noopener">colaboradores do OpenStreetMap</a>.
+                        <a id="mapa-link" href="https://www.openstreetmap.org/" target="_blank" rel="noopener"
+                            hidden>Abrir mapa maior</a>
+                    </figcaption>
                 </figure>
-
             </section>
         </div>
 
@@ -716,36 +489,7 @@
             <h2 id="titulo-forum">Fórum de discussão</h2>
             <p>Espaço para os usuários debaterem, sugerirem correções e compartilharem novas fontes.</p>
 
-            <div class="tabela-wrapper">
-                <table>
-                    <caption>Tópicos recentes (dados fictícios)</caption>
-
-                    <thead>
-                        <tr>
-                            <th scope="col">Tópico</th>
-                            <th scope="col">Autor</th>
-                            <th scope="col">Respostas</th>
-                            <th scope="col">Última atividade</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        <tr>
-                            <th scope="row"><a href="#forum">Como confirmar a data de inauguração da estação?</a></th>
-                            <td data-label="Autor">Ana Paula</td>
-                            <td data-label="Respostas">5</td>
-                            <td data-label="Última atividade"><time datetime="2026-10-12">12/10/2026</time></td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><a href="#forum">Fotos antigas da feira de 1952</a></th>
-                            <td data-label="Autor">Carlos Eduardo</td>
-                            <td data-label="Respostas">2</td>
-                            <td data-label="Última atividade"><time datetime="2026-10-14">14/10/2026</time></td>
-                        </tr>
-                    </tbody>
-
-                </table>
-            </div>
+            <div id="lista-forum"></div>
 
             <form class="forum-novo" action="#" method="post">
 
@@ -771,7 +515,7 @@
         </section>
 
 
-    <!-- ===================== SOBRE ===================== -->
+        <!-- ===================== SOBRE ===================== -->
         <section id="sobre" class="painel" aria-labelledby="titulo-sobre">
             <h2 id="titulo-sobre">Sobre o sistema</h2>
             <p>
@@ -782,8 +526,25 @@
         </section>
 
     </main>
+    <!-- ===================== MENSAGENS (alertas temporários) ===================== -->
+    
+    <div id="mensagens" class="mensagens"></div>
 
+    <!-- ===================== CONFIRMAÇÃO DE EXCLUSÃO ===================== -->
+    
+    <dialog id="dialogo-exclusao" class="dialogo" aria-labelledby="dialogo-titulo" aria-describedby="dialogo-texto">
+        <div class="confirmacao">
+            <h4 id="dialogo-titulo">Excluir este registro?</h4>
+            <p id="dialogo-texto"></p>
+            <div class="acoes">
+                <button type="button" id="btn-confirmar-exclusao" class="botao--perigo">Sim, excluir</button>
+                <button type="button" id="btn-cancelar-exclusao">Cancelar</button>
+            </div>
+        </div>
+    </dialog>
+    
     <!-- ===================== RODAPÉ ===================== -->
+    
     <footer class="rodape">
         <p>2026 Memória Viva - Sistema de gerenciamento de registros históricos.</p>
         <p><small>Projeto acadêmico. Os dados apresentados são fictícios.</small></p>
@@ -796,6 +557,7 @@
             </ul>
         </nav>
     </footer>
-
+    <script src="assets\js\script.js" defer></script>
 </body>
+
 </html>
