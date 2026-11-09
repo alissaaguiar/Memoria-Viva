@@ -682,7 +682,7 @@ function aoEnviarFormulario(evento) {
     }
 
     const novo = montarRegistro(dados);
-    estado.registros = [...estado.registros, novo];
+    if (!aplicarAlteracao([...estado.registros, novo])) return;
 
     formulario.reset();
     atualizarTudo();
@@ -708,9 +708,82 @@ function registrarEventosFormulario() {
 }
 
 function iniciar() {
-    estado.registros = [...REGISTROS_EXEMPLO];
+    const primeiraVez = lerJSON(CHAVE_REGISTROS, null) === null;
+    estado.registros = carregarRegistros();
+    if (primeiraVez) gravarJSON(CHAVE_REGISTROS, estado.registros);
+
     registrarEventosListagem();
     registrarEventosFormulario();
     atualizarCamposData();
     atualizarTudo();
+}
+
+function lerJSON(chave, padrao) {
+    try {
+        const bruto = localStorage.getItem(chave);
+        return bruto === null ? padrao : JSON.parse(bruto);
+    } catch (erro) {
+        console.error(`Erro ao ler "${chave}" do localStorage:`, erro);
+        return padrao;
+    }
+}
+
+function gravarJSON(chave, valor) {
+    try {
+        localStorage.setItem(chave, JSON.stringify(valor));
+        return true;
+    } catch (erro) {
+        console.error(`Erro ao gravar "${chave}" no localStorage:`, erro);
+        mostrarMensagem(
+            'erro',
+            'Não foi possível salvar no navegador (armazenamento cheio ou bloqueado). A alteração foi desfeita.',
+            8000
+        );
+        return false;
+    }
+}
+
+function normalizarRegistro(r) {
+    return {
+        id: r.id || gerarId('r'),
+        titulo: String(r.titulo || 'Sem título'),
+        descricao: r.descricao || '',
+        categoria: r.categoria || 'outra',
+        tipoData: r.tipoData || 'exata',
+        dataInicio: r.dataInicio || '',
+        dataFim: r.dataFim || '',
+        ano: r.ano ? String(r.ano) : '',
+        local: r.local || '',
+        latitude: typeof r.latitude === 'number' ? r.latitude : null,
+        longitude: typeof r.longitude === 'number' ? r.longitude : null,
+        pessoas: Array.isArray(r.pessoas) ? r.pessoas : [],
+        fonte: r.fonte || '',
+        linkFonte: r.linkFonte || '',
+        referencias: Array.isArray(r.referencias) ? r.referencias : [],
+        imagem: r.imagem && r.imagem.url ? r.imagem : null,
+        comentarios: Array.isArray(r.comentarios) ? r.comentarios : [],
+        criadoEm: r.criadoEm || new Date().toISOString(),
+    };
+}
+
+function carregarRegistros() {
+    const dados = lerJSON(CHAVE_REGISTROS, null);
+    if (dados === null) return JSON.parse(JSON.stringify(REGISTROS_EXEMPLO));
+    return Array.isArray(dados) ? dados.map(normalizarRegistro) : [];
+}
+
+function persistir(nomeNoEstado, chaveStorage, novoValor) {
+    const anterior = estado[nomeNoEstado];
+    estado[nomeNoEstado] = novoValor;
+    if (!gravarJSON(chaveStorage, novoValor)) {
+        estado[nomeNoEstado] = anterior;
+        return false;
+    }
+    return true;
+}
+
+const aplicarAlteracao = (novaLista) => persistir('registros', CHAVE_REGISTROS, novaLista);
+
+function atualizarRegistro(id, alterar) {
+    return aplicarAlteracao(estado.registros.map((r) => (r.id === id ? alterar(r) : r)));
 }
